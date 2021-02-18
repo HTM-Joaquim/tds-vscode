@@ -489,7 +489,8 @@ export function activate(context: ExtensionContext) {
   //Aplica um template.
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      "totvs-developer-studio.templateApply", () => {
+      "totvs-developer-studio.templateApply",
+      () => {
         openTemplateApplyView(context, undefined);
       }
     )
@@ -497,7 +498,8 @@ export function activate(context: ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      "totvs-developer-studio.templateApply.fromFile", (args: any) => {
+      "totvs-developer-studio.templateApply.fromFile",
+      (args: any) => {
         vscode.window.setStatusBarMessage(
           "Aguarde. Iniciando aplicação de template...",
           5000
@@ -520,13 +522,16 @@ export function activate(context: ExtensionContext) {
 
   //rpo log
   context.subscriptions.push(
-    vscode.commands.registerCommand("totvs-developer-studio.open-loadrpoinfo-view", () => {
-      vscode.window.setStatusBarMessage(
-        "Aguarde. Iniciando visualização...",
-        5000
-      );
-      openRpoInfoView(context);
-    })
+    vscode.commands.registerCommand(
+      "totvs-developer-studio.open-loadrpoinfo-view",
+      () => {
+        vscode.window.setStatusBarMessage(
+          "Aguarde. Iniciando visualização...",
+          5000
+        );
+        openRpoInfoView(context);
+      }
+    )
   );
 
   //Mostra a pagina de Welcome.

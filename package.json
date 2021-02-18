@@ -56,8 +56,7 @@
     "vscode:prepublish": "webpack --mode production",
     "---MISC---": "",
     "all-contributors:generate": "all-contributors generate",
-    "all-contributors:check": "all-contributors check",
-    "link:prettier-plugin-4gl": "npm link ../prettier-plugin-4gl --force"
+    "all-contributors:check": "all-contributors check"
   },
   "dependencies": {
     "@material-ui/core": "^4.11.0",
@@ -74,8 +73,6 @@
     "ini": "^1.3.5",
     "jszip": "^3.5.0",
     "material-table": "1.68.1",
-    "prettier": "^2.1.2",
-    "prettier-plugin-4gl": "^0.0.6",
     "react": "^16.13.0",
     "react-dom": "^16.13.0",
     "strip-json-comments": "^3.1.1",
@@ -480,52 +477,6 @@
           "type": "boolean",
           "default": false,
           "description": "%tds.package.workspaceServerConfig%"
-        },
-        "4gl.formatter": {
-          "type": "object",
-          "description": "Formatação 4GL",
-          "properties": {
-            "keywordsCase": {
-              "type": "string",
-              "enum": [
-                "upper",
-                "lower",
-                "ignore"
-              ],
-              "enumDescriptions": [
-                "Em maiúsculuas",
-                "Em minúsculas",
-                "Manter original"
-              ],
-              "default": "upper",
-              "description": "Coloca as palavras chaves da linguagem na caixa indicada"
-            },
-            "stringStyle": {
-              "type": "string",
-              "enum": [
-                "double-quotes",
-                "single-quotes",
-                "ignore"
-              ],
-              "enumDescriptions": [
-                "Aspas duplas",
-                "Aspas Simples",
-                "Manter original"
-              ],
-              "default": "ignore",
-              "description": "Indica como as _strings_ devem ser informadas."
-            },
-            "formatNumber": {
-              "type": "boolean",
-              "default": false,
-              "description": "Habilita a formatação de valores constantes numéricos."
-            },
-            "operatorSpacing": {
-              "type": "boolean",
-              "default": false,
-              "description": "Habilita o espaçamento de operadores em expressões."
-            }
-          }
         }
       }
     },
@@ -773,7 +724,7 @@
       },
       {
         "command": "totvs-developer-studio.run.formatter",
-        "title": "Format",
+        "title": "Format (basic)",
         "description": "%tds.package.apply.formatting%",
         "category": "TOTVS",
         "icon": {
