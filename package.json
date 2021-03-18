@@ -8,7 +8,7 @@
     "name": "TOTVS",
     "email": "tecnologia@totvs.com.br"
   },
-  "license": "Apache 2.0",
+  "license": "Apache-2.0",
   "keywords": [
     "multi-root ready",
     "advpl",
@@ -163,6 +163,7 @@
     "workspaceContains:*.ppo",
     "workspaceContains:*.prx",
     "workspaceContains:*.aph",
+    "workspaceContains:*.apl",
     "workspaceContains:*.ppx",
     "workspaceContains:*.ppp",
     "workspaceContains:*.tlpp",
