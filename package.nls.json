@@ -117,8 +117,16 @@
   "tds-monitor.open-monitor-view": "Open monitor view",
   "tds.package.workspaceServerConfig": "Use the workspace to maintain server settings.",
   "tds.package.OpenTimeLineWebview": "Open TimeLine Webview",
+<<<<<<< HEAD
   "tds.package.apply.formatting": "Applies basic formatting to TOTVS source files and their variations.",
   "totvs-developer-studio.open-rpoinfo": "Repository Log",
   "tds.package.templateApply": "Template Application",
   "tds.package.templateApply.fromFile": "Apply Template from file"
+=======
+  "tds.package.apply.formatting": "Applies formatting to TOTVS source files and their variations.",
+  "totvs-developer-studio.open-rpoinfo": "Repository Log",
+  "tds.package.templateApply": "Template Application",
+  "tds.package.templateApply.fromFile": "Apply Template from file",
+  "tds.package.rpoToken": "Configure RPO Token file"
+>>>>>>> dev
 }

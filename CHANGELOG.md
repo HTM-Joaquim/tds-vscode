@@ -6,6 +6,7 @@
 
 ### Melhoria:
 
+- Troca das imagens na documentação do monitor por outras com melhor resolução.
 - Adicionada a funcionalidade para aplicação de Templates (.tpl).
 - [BETA] Esta funcionalidade encontra-se em testes Beta. Caso encontre algum problema na aplicação de um Template abra uma Issue com o Template em questão informando como aplicar e como validar o Template para que possamos rever o processo.
 
@@ -18,6 +19,16 @@
 ## Solução:
 
 - Processo de formatação revisado, passando a tratar palavras-chaves durante a digitação. Detalhes em (Formatação de código fonte)[docs/format_config.md]
+
+## Debug do mesmo objetos de instancias diferentes avaliando erroneamente valor de atributos (https://github.com/totvs/tds-vscode/issues/655)
+
+### Problema:
+
+- Ao criar duas instancias de um mesmo objeto e pedir para avaliar o conteudo deles, uma das instancias trazia o valor da outra
+
+## Solução:
+
+- Corrigido processo de cache de objetos para considerar o nome completo do mesmo.
 
 # Versão [1.2.2]
 
