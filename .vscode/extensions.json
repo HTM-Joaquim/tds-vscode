@@ -1,4 +1,6 @@
 {
-	"recommendations": [
-	]
+    "recommendations": [
+        "eg2.vscode-npm-script",
+        "christian-kohler.npm-intellisense"
+    ]
 }
