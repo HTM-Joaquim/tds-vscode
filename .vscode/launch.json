@@ -26,10 +26,10 @@
 			],
 			"preLaunchTask": {
 				"type": "npm",
-				"script": "compile"
+				"script": "build"
 			},
 			"env": {
-				"TOTVS_LS_LOG_FILE" : "e://TOTVS_LS_LOG_FILE.log"
+				"TOTVS_LS_LOG_FILE": "e://TOTVS_LS_LOG_FILE.log"
 			}
 		},
 		{

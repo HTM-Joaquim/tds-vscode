@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as nls from 'vscode-nls';
 import { CompileKey } from './compileKey/compileKey';
-import { sendRpoToken } from './protocolMessages';
+import { sendRpoToken } from './_protocolMessages';
 import {
   getRpoTokenFromFile,
   getRpoTokenFromString,

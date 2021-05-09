@@ -6,10 +6,12 @@ import * as cheerio from 'cheerio';
 import * as ini from 'ini';
 import * as nls from 'vscode-nls';
 import { languageClient } from './extension';
-import { EnvSection, ServerItem } from './serverItemProvider';
+import { EnvironmentTreeItem } from './serverItemProvider';
 import { Authorization, CompileKey } from './compileKey/compileKey';
 import { changeSettings } from './server/languageServerSettings';
 import { IRpoToken } from './rpoToken';
+import { IServerItem, serverManager } from './serverManager';
+import { TDSConfiguration } from './configurations';
 //import { sendRpoToken } from './protocolMessages';
 
 const homedir = require('os').homedir();
@@ -43,7 +45,7 @@ export default class Utils {
   /**
    * Subscrição para evento de seleção de servidor/ambiente.
    */
-  static get onDidSelectedServer(): vscode.Event<ServerItem> {
+  static get onDidSelectedServer(): vscode.Event<IServerItem> {
     return Utils._onDidSelectedServer.event;
   }
 
@@ -64,7 +66,7 @@ export default class Utils {
   /**
    * Emite a notificação de seleção de servidor/ambiente
    */
-  private static _onDidSelectedServer = new vscode.EventEmitter<ServerItem>();
+  private static _onDidSelectedServer = new vscode.EventEmitter<IServerItem>();
 
   /**
    * Emite a notificação de seleção de chave de compilação
@@ -76,572 +78,270 @@ export default class Utils {
    */
   private static _onDidRpoTokenSelected = new vscode.EventEmitter<void>();
 
-  /**
-   * Gera um id de servidor
-   */
-  static generateRandomID() {
-    return (
-      Math.random().toString(36).substring(2, 15) +
-      Date.now().toString(36) +
-      Math.random().toString(36).substring(2, 15)
-    );
-  }
-
-  /**
-   * Troca o local da salva de servers.json
-   */
-  static toggleWorkspaceServerConfig() {
-    const config = vscode.workspace.getConfiguration('totvsLanguageServer');
-    config.update('workspaceServerConfig', !this.isWorkspaceServerConfig());
-  }
-
-  /**
-   * Pegar o arquivo servers.json da .vscode (workspace)?
-   */
-  static isWorkspaceServerConfig(): boolean {
-    let config = vscode.workspace.getConfiguration('totvsLanguageServer');
-    return config.get('workspaceServerConfig');
-  }
-
-  /**
-   * Retorna o path completo do servers.json
-   */
-  static getServerConfigFile() {
-    return path.join(this.getServerConfigPath(), 'servers.json');
-  }
-
-  /**
-   * Retorna o path de onde deve ficar o servers.json
-   */
-  static getServerConfigPath() {
-    return this.isWorkspaceServerConfig()
-      ? this.getVSCodePath()
-      : path.join(homedir, '/.totvsls');
-  }
-
-  /**
-   * Retorna o path completo do launch.json
-   */
-  static getLaunchConfigFile() {
-    return path.join(this.getVSCodePath(), 'launch.json');
-  }
-
-  /**
-   * Retorna o path da pasta .vscode dentro do workspace
-   */
-  static getVSCodePath() {
-    let rootPath: string = vscode.workspace.rootPath || process.cwd();
-
-    return path.join(rootPath, '.vscode');
-  }
-
-  /**
-   * Retorna todo o conteudo do servers.json
-   */
-  static getServersConfig() {
-    let config: any = {};
-    let serversJson = Utils.getServerConfigFile();
-    if (!fs.existsSync(serversJson)) {
-      Utils.initializeServerConfigFile(serversJson);
-    }
-    let json = fs.readFileSync(serversJson).toString();
-
-    if (json) {
-      try {
-        config = JSON.parse(stripJsonComments(json));
-      } catch (e) {
-        config = sampleServer();
-      }
-    }
-
-    //garante a existencia da sessão
-    if (!config.savedTokens) {
-      config.savedTokens = [];
-    }
-
-    //compatibilização com arquivos gravados com versão da extensão
-    //anterior a 26/06/20
-    if (
-      config.hasOwnProperty('lastConnectedServer') &&
-      typeof config.lastConnectedServer !== 'string'
-    ) {
-      if (config.lastConnectedServer.hasOwnProperty('id')) {
-        config.lastConnectedServer = config.lastConnectedServer.id;
-      }
-    }
-
-    return config;
-  }
+  // /**
+  //  * Retorna o path completo do launch.json
+  //  */
+  // static getLaunchConfigFile() {
+  //   return path.join(this.getVSCodePath(), 'launch.json');
+  // }
 
   /**
    * Retorna todo o conteudo do launch.json
    */
-  static getLaunchConfig() {
-    let config: any;
-    let exist = fs.existsSync(Utils.getLaunchConfigFile());
-    if (exist) {
-      let json = fs.readFileSync(Utils.getLaunchConfigFile()).toString();
-      if (json) {
-        try {
-          config = JSON.parse(stripJsonComments(json));
-        } catch (e) {
-          console.error(e);
-          throw e;
-          //return {};
-        }
-      }
-    }
-    return config;
-  }
+  // static getLaunchConfig() {
+  //   let config: any;
+  //   let exist = fs.existsSync(Utils.getLaunchConfigFile());
+  //   if (exist) {
+  //     let json = fs.readFileSync(Utils.getLaunchConfigFile()).toString();
+  //     if (json) {
+  //       try {
+  //         config = JSON.parse(stripJsonComments(json));
+  //       } catch (e) {
+  //         console.error(e);
+  //         throw e;
+  //         //return {};
+  //       }
+  //     }
+  //   }
+  //   return config;
+  // }
 
-  static saveLaunchConfig(config: JSON) {
-    let fs = require('fs');
-    fs.writeFileSync(
-      Utils.getLaunchConfigFile(),
-      JSON.stringify(config, null, '\t'),
-      (err) => {
-        if (err) {
-          console.error(err);
-        }
-      }
-    );
-  }
+  // static saveLaunchConfig(config: JSON) {
+  //   let fs = require('fs');
+  //   fs.writeFileSync(
+  //     Utils.getLaunchConfigFile(),
+  //     JSON.stringify(config, null, '\t'),
+  //     (err) => {
+  //       if (err) {
+  //         console.error(err);
+  //       }
+  //     }
+  //   );
+  // }
 
-  static updateSavedToken(id: string, environment: string, token: string) {
-    const servers = Utils.getServersConfig();
+  // static updateSavedToken(id: string, environment: string, token: string) {
+  //   const servers = Utils.getServersConfig();
 
-    const data = { id: id, environment: environment };
-    servers.savedTokens[id + ':' + environment] = data;
+  //   const data = { id: id, environment: environment };
+  //   servers.savedTokens[id + ':' + environment] = data;
 
-    // persistir a configuracao
-    Utils.persistServersInfo(servers);
-  }
+  //   // persistir a configuracao
+  //   Utils.persistServersInfo(servers);
+  // }
 
-  static getSavedTokens(id: string, environment: string): undefined | string {
-    const servers = Utils.getServersConfig();
-    let token = undefined;
+  // static getSavedTokens(id: string, environment: string): undefined | string {
+  //   const servers = Utils.getServersConfig();
+  //   let token = undefined;
 
-    if (servers.savedTokens) {
-      token = servers.savedTokens
-        .filter((element) => {
-          return element[0] === id + ':' + environment;
-        })
-        .map((element) => {
-          return element[1]['token'];
-        });
-      if (token) {
-        token = token[0];
-      }
-    }
+  //   if (servers.savedTokens) {
+  //     token = servers.savedTokens
+  //       .filter((element) => {
+  //         return element[0] === id + ':' + environment;
+  //       })
+  //       .map((element) => {
+  //         return element[1]['token'];
+  //       });
+  //     if (token) {
+  //       token = token[0];
+  //     }
+  //   }
 
-    return token;
-  }
+  //   return token;
+  // }
 
-  /**
-   * Salva o servidor logado por ultimo.
-   * @param id Id do servidor logado
-   * @param token Token que o LS gerou em cima das informacoes de login
-   * @param name Nome do servidor logado
-   * @param environment Ambiente utilizado no login
-   */
-  static saveSelectServer(
-    id: string,
-    token: string,
-    name: string,
-    environment: string,
-    username: string
-  ) {
-    const servers = Utils.getServersConfig();
+  // /**
+  //  * Salva o servidor logado por ultimo.
+  //  * @param id Id do servidor logado
+  //  * @param token Token que o LS gerou em cima das informacoes de login
+  //  * @param name Nome do servidor logado
+  //  * @param environment Ambiente utilizado no login
+  //  */
+  // static saveSelectServer(
+  //   id: string,
+  //   token: string,
+  //   name: string,
+  //   environment: string,
+  //   username: string
+  // ) {
+  //   const servers = Utils.getServersConfig();
 
-    servers.configurations.forEach((element) => {
-      if (element.id === id) {
-        if (element.environments === undefined) {
-          element.environments = [environment];
-        } else if (element.environments.indexOf(environment) === -1) {
-          element.environments.push(environment);
-        }
+  //   servers.configurations.forEach((element) => {
+  //     if (element.id === id) {
+  //       if (element.environments === undefined) {
+  //         element.environments = [environment];
+  //       } else if (element.environments.indexOf(environment) === -1) {
+  //         element.environments.push(environment);
+  //       }
 
-        element.username = username;
-        element.environment = environment;
-        element.token = token;
+  //       element.username = username;
+  //       element.environment = environment;
+  //       element.token = token;
 
-        servers.connectedServer = element;
-        servers.lastConnectedServer = element.id;
-      }
-    });
+  //       servers.connectedServer = element;
+  //       servers.lastConnectedServer = element.id;
+  //     }
+  //   });
 
-    Utils.persistServersInfo(servers);
-    Utils._onDidSelectedServer.fire(servers.connectedServer);
-  }
+  //   Utils.persistServersInfo(servers);
+  //   Utils._onDidSelectedServer.fire(servers.connectedServer);
+  // }
 
-  /**
-   * Salva o servidor logado por ultimo.
-   * @param id Id do servidor logado
-   * @param token Token que o LS gerou em cima das informacoes de login
-   * @param environment Ambiente utilizado no login
-   */
-  static saveConnectionToken(id: string, token: string, environment: string) {
-    const servers = Utils.getServersConfig();
+  // /**
+  //  * Salva o servidor logado por ultimo.
+  //  * @param id Id do servidor logado
+  //  * @param token Token que o LS gerou em cima das informacoes de login
+  //  * @param environment Ambiente utilizado no login
+  //  */
+  // static saveConnectionToken(id: string, token: string, environment: string) {
+  //   const servers = Utils.getServersConfig();
 
-    if (!servers.savedTokens) {
-      let emptySavedTokens: Array<[string, object]> = [];
-      servers.savedTokens = emptySavedTokens;
-    } else {
-      let found: boolean = false;
-      let key = id + ':' + environment;
-      if (servers.savedTokens) {
-        servers.savedTokens.forEach((element) => {
-          if (element[0] === key) {
-            found = true; // update token
-            element[1] = { id: id, token: token };
-          }
-        });
-      }
-      if (!found) {
-        servers.savedTokens.push([key, { id: id, token: token }]);
-      } else {
-        servers.savedTokens[key] = { id: id, token: token };
-      }
+  //   if (!servers.savedTokens) {
+  //     let emptySavedTokens: Array<[string, object]> = [];
+  //     servers.savedTokens = emptySavedTokens;
+  //   } else {
+  //     let found: boolean = false;
+  //     let key = id + ':' + environment;
+  //     if (servers.savedTokens) {
+  //       servers.savedTokens.forEach((element) => {
+  //         if (element[0] === key) {
+  //           found = true; // update token
+  //           element[1] = { id: id, token: token };
+  //         }
+  //       });
+  //     }
+  //     if (!found) {
+  //       servers.savedTokens.push([key, { id: id, token: token }]);
+  //     } else {
+  //       servers.savedTokens[key] = { id: id, token: token };
+  //     }
 
-      Utils.persistServersInfo(servers);
-    }
-  }
+  //     Utils.persistServersInfo(servers);
+  //   }
+  // }
 
-  /**
-   * Remove o token salvo do servidor/environment.
-   * @param id Id do servidor logado
-   * @param environment Ambiente utilizado no login
-   */
-  static removeSavedConnectionToken(id: string, environment: string) {
-    const servers = Utils.getServersConfig();
-    if (servers.savedTokens) {
-      let key = id + ':' + environment;
-      servers.savedTokens.forEach((element) => {
-        if (element[0] === key) {
-          const index = servers.savedTokens.indexOf(element, 0);
-          servers.savedTokens.splice(index, 1);
-          Utils.persistServersInfo(servers);
-          return;
-        }
-      });
-    }
-  }
-
-  /**
-   * Deleta o servidor logado por ultimo do servers.json
-   */
-  static deleteSelectServer() {
-    const servers = Utils.getServersConfig();
-    if (servers.connectedServer.id) {
-      let server = {};
-      servers.connectedServer = server;
-      const configADVPL = vscode.workspace.getConfiguration(
-        'totvsLanguageServer'
-      ); //transformar em configuracao de workspace
-      let isReconnectLastServer = configADVPL.get('reconnectLastServer');
-      if (!isReconnectLastServer) {
-        servers.lastConnectedServer = '';
-      }
-      Utils.persistServersInfo(servers);
-    }
-  }
-
-  static clearConnectedServerConfig() {
-    const allConfigs = Utils.getServersConfig();
-
-    allConfigs.connectedServer = {};
-    allConfigs.lastConnectedServer = '';
-    Utils.persistServersInfo(allConfigs);
-    Utils._onDidSelectedServer.fire(undefined);
-  }
+  // /**
+  //  * Remove o token salvo do servidor/environment.
+  //  * @param id Id do servidor logado
+  //  * @param environment Ambiente utilizado no login
+  //  */
+  // static removeSavedConnectionToken(id: string, environment: string) {
+  //   const servers = Utils.getServersConfig();
+  //   if (servers.savedTokens) {
+  //     let key = id + ':' + environment;
+  //     servers.savedTokens.forEach((element) => {
+  //       if (element[0] === key) {
+  //         const index = servers.savedTokens.indexOf(element, 0);
+  //         servers.savedTokens.splice(index, 1);
+  //         Utils.persistServersInfo(servers);
+  //         return;
+  //       }
+  //     });
+  //   }
+  // }
 
   /**
    * Deleta o servidor logado por ultimo do servers.json
    */
-  static deleteServer(id: string) {
-    const confirmationMessage = 'Tem certeza que deseja excluir este servidor?';
-    const optionYes = 'Sim';
-    const optionNo = 'Não';
-    vscode.window
-      .showWarningMessage(confirmationMessage, optionYes, optionNo)
-      .then((clicked) => {
-        if (clicked === optionYes) {
-          const allConfigs = Utils.getServersConfig();
+  // static deleteSelectServer() {
+  //   const servers = Utils.getServersConfig();
+  //   if (servers.connectedServer.id) {
+  //     let server = {};
+  //     servers.connectedServer = server;
+  //     const configADVPL = vscode.workspace.getConfiguration(
+  //       'totvsLanguageServer'
+  //     ); //transformar em configuracao de workspace
+  //     let isReconnectLastServer = configADVPL.get('reconnectLastServer');
+  //     if (!isReconnectLastServer) {
+  //       servers.lastConnectedServer = '';
+  //     }
+  //     Utils.persistServersInfo(servers);
+  //   }
+  // }
 
-          if (allConfigs.configurations) {
-            const configs = allConfigs.configurations;
+  // static clearConnectedServerConfig() {
+  //   const allConfigs = Utils.getServersConfig();
 
-            configs.forEach((element) => {
-              if (element.id === id) {
-                const index = configs.indexOf(element, 0);
-                configs.splice(index, 1);
-                Utils.persistServersInfo(allConfigs);
-                return;
-              }
-            });
-          }
-        }
-      });
-  }
+  //   allConfigs.connectedServer = {};
+  //   allConfigs.lastConnectedServer = '';
+  //   Utils.persistServersInfo(allConfigs);
+  //   Utils._onDidSelectedServer.fire(undefined);
+  // }
 
-  /**
-   * Grava no arquivo servers.json uma nova configuracao de servers
-   * @param JSONServerInfo
-   */
-  static persistServersInfo(JSONServerInfo) {
-    let fs = require('fs');
-    fs.writeFileSync(
-      Utils.getServerConfigFile(),
-      JSON.stringify(JSONServerInfo, null, '\t'),
-      (err) => {
-        if (err) {
-          console.error(err);
-        }
-      }
-    );
-  }
+  // /**
+  //  * Deleta o servidor logado por ultimo do servers.json
+  //  */
+  // static deleteServer(id: string) {
+  //   const confirmationMessage = 'Tem certeza que deseja excluir este servidor?';
+  //   const optionYes = 'Sim';
+  //   const optionNo = 'Não';
+  //   vscode.window
+  //     .showWarningMessage(confirmationMessage, optionYes, optionNo)
+  //     .then((clicked) => {
+  //       if (clicked === optionYes) {
+  //         const allConfigs = Utils.getServersConfig();
 
-  /**
-   * Grava no arquivo launch.json uma nova configuracao de launchs
-   * @param JSONServerInfo
-   */
-  static persistLaunchsInfo(JSONLaunchInfo) {
-    let fs = require('fs');
-    fs.writeFileSync(
-      Utils.getLaunchConfigFile(),
-      JSON.stringify(JSONLaunchInfo, null, '\t'),
-      (err) => {
-        if (err) {
-          console.error(err);
-        }
-      }
-    );
-  }
+  //         if (allConfigs.configurations) {
+  //           const configs = allConfigs.configurations;
 
-  /**
-   * Cria uma nova configuracao de servidor no servers.json
-   */
-  static createNewServer(
-    typeServer,
-    serverName,
-    port,
-    address,
-    buildVersion,
-    secure,
-    includes
-  ): string | undefined {
-    Utils.createServerConfig();
-    let serverConfig = Utils.getServersConfig();
+  //           configs.forEach((element) => {
+  //             if (element.id === id) {
+  //               const index = configs.indexOf(element, 0);
+  //               configs.splice(index, 1);
+  //               Utils.persistServersInfo(allConfigs);
+  //               return;
+  //             }
+  //           });
+  //         }
+  //       }
+  //     });
+  // }
 
-    if (!serverConfig || !serverConfig.configurations) {
-      let serversJson = Utils.getServerConfigFile();
-      Utils.initializeServerConfigFile(serversJson);
-      serverConfig = Utils.getServersConfig();
-    }
+  // /**
+  //  * Grava no arquivo servers.json uma nova configuracao de servers
+  //  * @param JSONServerInfo
+  //  */
+  // static persistServersInfo(JSONServerInfo) {
+  //   let fs = require('fs');
+  //   fs.writeFileSync(
+  //     Utils.getServerConfigFile(),
+  //     JSON.stringify(JSONServerInfo, null, '\t'),
+  //     (err) => {
+  //       if (err) {
+  //         console.error(err);
+  //       }
+  //     }
+  //   );
+  // }
 
-    if (serverConfig.configurations) {
-      const servers = serverConfig.configurations;
+  // /**
+  //  * Grava no arquivo launch.json uma nova configuracao de launchs
+  //  * @param JSONServerInfo
+  //  */
+  // static persistLaunchsInfo(JSONLaunchInfo) {
+  //   let fs = require('fs');
+  //   fs.writeFileSync(
+  //     Utils.getLaunchConfigFile(),
+  //     JSON.stringify(JSONLaunchInfo, null, '\t'),
+  //     (err) => {
+  //       if (err) {
+  //         console.error(err);
+  //       }
+  //     }
+  //   );
+  // }
 
-      if (
-        servers.find((element) => {
-          return element.name === serverName;
-        })
-      ) {
-        vscode.window.showErrorMessage(
-          localize(
-            'tds.webview.serversView.serverNameDuplicated',
-            'Server name already exists'
-          )
-        );
-        return undefined;
-      } else {
-        let validate_includes: string[] = [];
-        includes.forEach((element) => {
-          if (element !== undefined && element.length > 0) {
-            validate_includes.push(element);
-          }
-        });
-        const serverId: string = Utils.generateRandomID();
-        servers.push({
-          id: serverId,
-          type: typeServer,
-          name: serverName,
-          port: parseInt(port),
-          address: address,
-          buildVersion: buildVersion,
-          secure: secure,
-          includes: validate_includes,
-        });
-
-        Utils.persistServersInfo(serverConfig);
-        return serverId;
-      }
-    }
-    return undefined;
-  }
-
-  /**
-   * Recupera o ultimo servidor logado
-   */
-  static getCurrentServer() {
-    const servers = Utils.getServersConfig();
-
-    if (servers.connectedServer.id) {
-      // busca sempre pelo ID pois pode ter ocorrido alguma alteração nas configurações do servidor conectado
-      return Utils.getServerById(servers.connectedServer.id);
-    } else {
-      return '';
-    }
-  }
-
-  static getAuthorizationToken(server: ServerItem): string {
-    let authorizationToken: string = '';
-    let isSafeRPOServer: boolean = Utils.isSafeRPO(server);
-    const permissionsInfos: IRpoToken | CompileKey = isSafeRPOServer ? Utils.getRpoTokenInfos() : Utils.getPermissionsInfos();
-    if (permissionsInfos) {
-      if (isSafeRPOServer) {
-        authorizationToken = (<IRpoToken>permissionsInfos).token;
-      }
-      else {
-        authorizationToken = (<CompileKey>permissionsInfos).authorizationToken;
-      }
-    }
-    return authorizationToken;
-  }
-
-  static getRpoTokenInfos(): IRpoToken {
-    const servers = Utils.getServersConfig();
-
-    return servers ? servers.rpoToken : undefined;
-  }
-
-  static saveRpoTokenInfos(infos: IRpoToken) {
-    const config = Utils.getServersConfig();
-
-    config.rpoToken = infos;
-
-    Utils.persistServersInfo(config);
-    //Utils._onDidSelectedKey.fire(infos);
-  }
-
-  static getPermissionsInfos(): CompileKey {
-    const servers = Utils.getServersConfig();
-
-    return servers ? servers.permissions : undefined;
-  }
-
-  static savePermissionsInfos(infos: CompileKey) {
-    const config = Utils.getServersConfig();
-
-    config.permissions = infos;
-
-    Utils.persistServersInfo(config);
-    Utils._onDidSelectedKey.fire(infos);
-  }
-
-  static deletePermissionsInfos() {
-    const config = Utils.getServersConfig();
-
-    config.permissions = undefined;
-
-    Utils.persistServersInfo(config);
-    Utils._onDidSelectedKey.fire(undefined);
-  }
-
-  static removeExpiredAuthorization() {
-    vscode.window.showWarningMessage(
-      localize(
-        'tds.webview.utils.removeExpiredAuthorization',
-        'Expired authorization token deleted'
-      )
-    );
-    Utils.deletePermissionsInfos(); // remove expired authorization key
-  }
-
-  /**
-   * Recupera a lista de includes do arquivod servers.json
-   */
-  static getIncludes(
-    absolutePath: boolean = false,
-    server: any = undefined
-  ): Array<string> {
-    let includes: Array<string>;
-    if (
-      server !== undefined &&
-      server.includes !== undefined &&
-      server.includes.length > 0
-    ) {
-      includes = server.includes as Array<string>;
-    } else {
-      const servers = Utils.getServersConfig();
-      includes = servers.includes as Array<string>;
-    }
-
-    if (includes.toString()) {
-      if (absolutePath) {
-        const ws: string = vscode.workspace.rootPath || '';
-        includes.forEach((value, index, elements) => {
-          if (value.startsWith('.')) {
-            value = path.resolve(ws, value);
-          } else {
-            value = path.resolve(value.replace('${workspaceFolder}', ws));
-          }
-
-          try {
-            const fi: fs.Stats = fs.lstatSync(value);
-            if (!fi.isDirectory) {
-              const msg: string = localize(
-                'tds.webview.utils.reviewList',
-                'Review the folder list in order to search for settings (.ch). Not recognized as folder: {0}',
-                value
-              );
-              vscode.window.showWarningMessage(msg);
-            } else {
-              elements[index] = value;
-            }
-          } catch (error) {
-            const msg: string = localize(
-              'tds.webview.utils.reviewList2',
-              'Review the folder list in order to search for settings (.ch). Invalid folder: {0}',
-              value
-            );
-            console.log(error);
-            vscode.window.showWarningMessage(msg);
-            elements[index] = '';
-          }
-        });
-      }
-    } else {
-      vscode.window.showWarningMessage(
-        localize(
-          'tds.webview.utils.listFolders',
-          'List of folders to search for definitions not configured.'
-        )
-      );
-    }
-    return includes;
-  }
-
-  /**
-   * Cria o arquivo servers.json caso ele nao exista.
-   */
-  static createServerConfig() {
-    if (!fs.existsSync(Utils.getServerConfigPath())) {
-      fs.mkdirSync(Utils.getServerConfigPath());
-    }
-    let serversJson = Utils.getServerConfigFile();
-    if (!fs.existsSync(serversJson)) {
-      Utils.initializeServerConfigFile(serversJson);
-    }
-  }
-
-  static initializeServerConfigFile(serversJson) {
-    try {
-      fs.writeFileSync(serversJson, JSON.stringify(sampleServer(), null, '\t'));
-    } catch (err) {
-      console.error(err);
-    }
-  }
+  // /**
+  //  * Cria o arquivo servers.json caso ele nao exista.
+  //  */
+  // static createServerConfig() {
+  //   if (!fs.existsSync(TDSConfiguration.getServerConfigPath())) {
+  //     fs.mkdirSync(TDSConfiguration.getServerConfigPath());
+  //   }
+  //   let serversJson = Utils.getServerConfigFile();
+  //   if (!fs.existsSync(serversJson)) {
+  //     Utils.initializeServerConfigFile(serversJson);
+  //   }
+  // }
 
   /**
    * Cria o arquivo launch.json caso ele nao exista.
@@ -1096,7 +796,7 @@ export default class Utils {
   /**
    * Deleta o servidor logado por ultimo do servers.json
    */
-  static deleteEnvironmentServer(envinronment: EnvSection) {
+  static deleteEnvironmentServer(envinronment: EnvironmentTreeItem) {
     const allConfigs = Utils.getServersConfig();
 
     if (allConfigs.configurations) {
@@ -1117,28 +817,6 @@ export default class Utils {
       });
     }
   }
-
-  static isSafeRPO(server: ServerItem): boolean {
-    if (server && server.buildVersion) {
-      return server.buildVersion.localeCompare("7.00.191205P") > 0;
-    }
-    return false;
-  }
-
-}
-
-function sampleServer(): any {
-  return {
-    version: '0.2.1',
-    includes: [''],
-    permissions: {
-      authorizationtoken: '',
-    },
-    connectedServer: {},
-    configurations: [],
-    savedTokens: [],
-    lastConnectedServer: ''
-  };
 }
 
 export function groupBy<T, K>(list: T[], getKey: (item: T) => K) {

@@ -69,6 +69,8 @@ import { initStatusBarItems, updateStatusBarItems } from './statusBar';
 import { PatchEditorProvider } from './patch/inspect/patchEditor';
 import { openTemplateApplyView } from './template/apply/formApplyTemplate';
 import { rpoTokenInputBox, saveRpoTokenString } from './rpoToken';
+import { serverManager } from './serverManager';
+import { TDSConfiguration } from './configurations';
 
 export let languageClient: LanguageClient;
 export function parseUri(u): Uri {
@@ -87,7 +89,6 @@ export function activate(context: ExtensionContext) {
     )
   );
 
-  Utils.createServerConfig();
   Utils.createLaunchConfig();
 
   context.subscriptions.push(
@@ -544,7 +545,7 @@ export function activate(context: ExtensionContext) {
     commands.registerCommand(
       'totvs-developer-studio.toggleSaveLocation',
       () => {
-        Utils.toggleWorkspaceServerConfig();
+        TDSConfiguration.toggleWorkspaceServerConfig();
       }
     )
   );
@@ -642,7 +643,7 @@ function instanceOfUriArray(object: any): object is Uri[] {
 
 // this method is called when your extension is deactivated
 export function deactivate() {
-  Utils.deleteSelectServer();
+  //Utils.deleteSelectServer();
 }
 
 function registerLog(context: vscode.ExtensionContext) {

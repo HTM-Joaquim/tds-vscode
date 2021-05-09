@@ -2,7 +2,7 @@
   "name": "tds-vscode",
   "displayName": "TOTVS Developer Studio for VSCode (AdvPL, TLPP e 4GL)",
   "description": "%tds.package.description%",
-  "version": "1.2.3",
+  "version": "1.3.0",
   "publisher": "TOTVS",
   "author": {
     "name": "TOTVS",
@@ -19,9 +19,6 @@
     "monitor",
     "protheus"
   ],
-  "engines": {
-    "vscode": "^1.47.0"
-  },
   "icon": "imagens/totvs-developer-studio.png",
   "categories": [
     "Programming Languages",
@@ -37,13 +34,17 @@
   "bugs": {
     "url": "https://github.com/totvs/tds-vscode.git"
   },
+  "homepage": "https://github.com/totvs/tds-vscode#readme",
+  "engines": {
+    "vscode": "^1.47.0"
+  },
+  "main": "./out/extension",
+  "types": "typings/index.d.ts",
   "scripts": {
     "clean2": "gulp clean",
-    "compile": "tsc --version && npm-run-all compile:*",
-    "compile:extension": "tsc -p ./src",
-    "compile:views": "webpack --mode development",
-    "tslint": "tslint ./src/**/*.ts",
-    "tslint:fix": "tslint ./src/**/*.ts --fix",
+    "build": "tsc --version && npm-run-all build:*",
+    "build:extension": "tsc -p ./src",
+    "build:views": "webpack --mode development",
     "--TEST--": "",
     "test": "jest",
     "watch:test": "jest --watch",
@@ -52,18 +53,21 @@
     "export-i18n": "gulp export-i18n",
     "i18n-import": "gulp i18n-import",
     "---RELEASE---": "",
-    "release": "npx standard-version -r 1.1.0",
+    "release": "npx standard-version",
     "tag": "git push --follow-tags",
     "pack": "npm pack",
     "package": "gulp package",
     "publish": "gulp publish",
     "vscode:prepublish": "webpack --mode production",
     "---MISC---": "",
-    "all-contributors:generate": "all-contributors generate",
-    "all-contributors:check": "all-contributors check",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "contributors:check": "npx all-contributors-cli check",
+    "contributors:generate": "npx all-contributors-cli generate",
     "---LINKS---": "",
-    "link:prettier-plugin-4gl": "npm link ../prettier-plugin-4gl --force",
-    "link:prettier-plugin-advpl": "npm link ../prettier-plugin-advpl --force"
+    "link:tds-languageclient": "npm link ../tds-languageclient",
+    "link:prettier-plugin-4gl": "npm link ../prettier-plugin-4gl",
+    "link:prettier-plugin-advpl": "npm link ../prettier-plugin-advpl"
   },
   "dependencies": {
     "@material-ui/core": "^4.11.0",
@@ -72,7 +76,7 @@
     "@totvs/prettier-plugin-4gl": "^0.1.2",
     "@totvs/prettier-plugin-advpl": "^0.1.2",
     "@totvs/tds-da": "^1.1.22",
-    "@totvs/tds-ls": "^1.1.41",
+    "@totvs/tds-languageclient": "0.1.1",
     "@types/node": "^14.14.12",
     "@types/react": "^16.9.50",
     "@types/vscode": "^1.52.0",
@@ -101,9 +105,13 @@
     "@types/ini": "^1.3.30",
     "@types/mocha": "^8.0.4",
     "@types/react-dom": "^16.9.8",
-    "all-contributors-cli": "^6.17.4",
+    "@typescript-eslint/eslint-plugin": "^4.22.1",
+    "@typescript-eslint/parser": "^4.22.1",
+    "all-contributors-cli": "^6.20.0",
     "cleanup": "^0.3.0",
     "css-loader": "^4.3.0",
+    "eslint": "^7.25.0",
+    "eslint-plugin-tsdoc": "^0.2.14",
     "gulp": "^4.0.2",
     "gulp-filter": "^6.0.0",
     "gulp-sourcemaps": "^2.6.5",
@@ -116,7 +124,6 @@
     "style-loader": "^1.2.1",
     "terser-webpack-plugin": "^4.2.2",
     "ts-loader": "^8.0.4",
-    "tslint": "^6.1.2",
     "vsce": "^1.81.0",
     "vscode-nls-dev": "^3.3.2",
     "vscode-test": "^1.4.1",
@@ -124,7 +131,21 @@
     "webpack-cli": "^3.3.12",
     "webpack-stream": "^6.1.0"
   },
-  "main": "./out/extension",
+  "eslintIgnore": [
+    "out/**",
+    "typings/**"
+  ],
+  "jest": {
+    "verbose": false,
+    "testEnvironment": "node",
+    "clearMocks": true,
+    "coverageDirectory": "coverage",
+    "testTimeout": 300000,
+    "slowTestThreshold": 20,
+    "roots": [
+      "./tests"
+    ]
+  },
   "activationEvents": [
     "onLanguage:advpl",
     "onLanguage:4gl",

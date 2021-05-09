@@ -1,12 +1,15 @@
-import * as vscode from "vscode";
-import * as fs from "fs";
-import * as path from "path";
-import Utils from "./utils";
-import * as nls from "vscode-nls";
-import { inputConnectionParameters } from "./inputConnectionParameters";
-import { inputAuthenticationParameters } from "./inputAuthenticationParameters";
-import { ResponseError } from "vscode-languageclient";
-import serverProvider, { ServerItem, EnvSection } from "./serverItemProvider";
+import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
+import Utils from './utils';
+import * as nls from 'vscode-nls';
+import { inputConnectionParameters } from './inputConnectionParameters';
+import { inputAuthenticationParameters } from './inputAuthenticationParameters';
+import { ResponseError } from 'vscode-languageclient';
+import serverProvider, {
+  ServerItem,
+  EnvironmentTreeItem,
+} from './serverItemProvider';
 import {
   ConnTypeIds,
   sendValidationRequest,
@@ -19,41 +22,41 @@ import {
   sendReconnectRequest,
   IReconnectInfo,
   ENABLE_CODE_PAGE,
-} from "./protocolMessages";
+} from './_protocolMessages';
 
 let localize = nls.loadMessageBundle();
-const compile = require("template-literal");
+const compile = require('template-literal');
 
 const localizeHTML = {
-  "tds.webview.newServer.title": localize(
-    "tds.webview.newServer.title",
-    "New Server"
+  'tds.webview.newServer.title': localize(
+    'tds.webview.newServer.title',
+    'New Server'
   ),
-  "tds.webview.newServer.name": localize(
-    "tds.webview.newServer.name",
-    "Server Name"
+  'tds.webview.newServer.name': localize(
+    'tds.webview.newServer.name',
+    'Server Name'
   ),
-  "tds.webview.newServer.address": localize(
-    "tds.webview.newServer.address",
-    "Address"
+  'tds.webview.newServer.address': localize(
+    'tds.webview.newServer.address',
+    'Address'
   ),
-  "tds.webview.newServer.port": localize("tds.webview.newServer.port", "Port"),
-  "tds.webview.newServer.save": localize("tds.webview.newServer.save", "Save"),
-  "tds.webview.newServer.saveClose": localize(
-    "tds.webview.newServer.saveClose",
-    "Save/Close"
+  'tds.webview.newServer.port': localize('tds.webview.newServer.port', 'Port'),
+  'tds.webview.newServer.save': localize('tds.webview.newServer.save', 'Save'),
+  'tds.webview.newServer.saveClose': localize(
+    'tds.webview.newServer.saveClose',
+    'Save/Close'
   ),
-  "tds.webview.newServer.secure": localize(
-    "tds.webview.newServer.secure",
-    "Secure(SSL)"
+  'tds.webview.newServer.secure': localize(
+    'tds.webview.newServer.secure',
+    'Secure(SSL)'
   ),
-  "tds.webview.dir.include": localize(
-    "tds.webview.dir.include",
-    "Includes directory"
+  'tds.webview.dir.include': localize(
+    'tds.webview.dir.include',
+    'Includes directory'
   ),
-  "tds.webview.dir.include2": localize(
-    "tds.webview.dir.include2",
-    "Allow multiple directories"
+  'tds.webview.dir.include2': localize(
+    'tds.webview.dir.include2',
+    'Allow multiple directories'
   ),
 };
 
@@ -61,9 +64,9 @@ export class ServersExplorer {
   constructor(context: vscode.ExtensionContext) {
     let currentPanel: vscode.WebviewPanel | undefined = undefined;
 
-    vscode.commands.registerCommand("totvs-developer-studio.add", () => {
+    vscode.commands.registerCommand('totvs-developer-studio.add', () => {
       if (vscode.workspace.workspaceFolders === undefined) {
-        vscode.window.showErrorMessage("No folder opened.");
+        vscode.window.showErrorMessage('No folder opened.');
         return;
       }
 
@@ -71,14 +74,14 @@ export class ServersExplorer {
         currentPanel.reveal();
       } else {
         currentPanel = vscode.window.createWebviewPanel(
-          "totvs-developer-studio.add",
-          localize("tds.webview.newServer.title", "New Server"),
+          'totvs-developer-studio.add',
+          localize('tds.webview.newServer.title', 'New Server'),
           vscode.ViewColumn.One,
           {
             enableScripts: true,
             localResourceRoots: [
               vscode.Uri.file(
-                path.join(context.extensionPath, "src", "server")
+                path.join(context.extensionPath, 'src', 'server')
               ),
             ],
             retainContextWhenHidden: true,
@@ -97,14 +100,14 @@ export class ServersExplorer {
         currentPanel.webview.onDidReceiveMessage(
           (message) => {
             switch (message.command) {
-              case "checkDir":
+              case 'checkDir':
                 let checkedDir = Utils.checkDir(message.selectedDir);
                 currentPanel.webview.postMessage({
-                  command: "checkedDir",
+                  command: 'checkedDir',
                   checkedDir: checkedDir,
                 });
                 break;
-              case "saveServer":
+              case 'saveServer':
                 if (message.serverName && message.port && message.address) {
                   const serverId = createServer(
                     message.serverType,
@@ -112,7 +115,7 @@ export class ServersExplorer {
                     message.port,
                     message.address,
                     0,
-                    "",
+                    '',
                     true,
                     message.includes
                   );
@@ -134,8 +137,8 @@ export class ServersExplorer {
                 } else {
                   vscode.window.showErrorMessage(
                     localize(
-                      "tds.webview.serversView.addServerFail",
-                      "Add Server Fail. Name, port and Address are need"
+                      'tds.webview.serversView.addServerFail',
+                      'Add Server Fail. Name, port and Address are need'
                     )
                   );
                 }
@@ -153,9 +156,9 @@ export class ServersExplorer {
       }
     });
 
-    vscode.commands.registerCommand("totvs-developer-studio.config", () => {
+    vscode.commands.registerCommand('totvs-developer-studio.config', () => {
       if (vscode.workspace.workspaceFolders === undefined) {
-        vscode.window.showErrorMessage("No folder opened.");
+        vscode.window.showErrorMessage('No folder opened.');
         return;
       }
       const servers = Utils.getServerConfigFile();
@@ -166,18 +169,18 @@ export class ServersExplorer {
 
     // check if there is an open folder
     if (vscode.workspace.workspaceFolders === undefined) {
-      vscode.window.showErrorMessage("No folder opened.");
+      vscode.window.showErrorMessage('No folder opened.');
       return;
     }
 
-    const options: vscode.TreeViewOptions<ServerItem | EnvSection> = {
+    const options: vscode.TreeViewOptions<ServerItem | EnvironmentTreeItem> = {
       treeDataProvider: serverProvider,
     };
-    vscode.window.createTreeView("totvs_server", options);
-    vscode.window.registerTreeDataProvider("totvs_server", serverProvider);
+    vscode.window.createTreeView('totvs_server', options);
+    vscode.window.registerTreeDataProvider('totvs_server', serverProvider);
 
     vscode.commands.registerCommand(
-      "totvs-developer-studio.connect",
+      'totvs-developer-studio.connect',
       (serverItem: ServerItem) => {
         let ix = serverProvider.localServerItems.indexOf(serverItem);
         if (ix >= 0) {
@@ -213,8 +216,8 @@ export class ServersExplorer {
                   } else {
                     vscode.window.showErrorMessage(
                       localize(
-                        "tds.webview.serversView.couldNotConn",
-                        "Could not connect to server"
+                        'tds.webview.serversView.couldNotConn',
+                        'Could not connect to server'
                       )
                     );
                   }
@@ -231,7 +234,7 @@ export class ServersExplorer {
     );
 
     vscode.commands.registerCommand(
-      "totvs-developer-studio.reconnect",
+      'totvs-developer-studio.reconnect',
       (serverItem: ServerItem) => {
         let ix = serverProvider.localServerItems.indexOf(serverItem);
         if (ix >= 0) {
@@ -246,8 +249,8 @@ export class ServersExplorer {
           } else {
             vscode.window.showErrorMessage(
               localize(
-                "tds.webview.serversView.couldNotReconn",
-                "Could not reconnect to server"
+                'tds.webview.serversView.couldNotReconn',
+                'Could not reconnect to server'
               )
             );
           }
@@ -256,7 +259,7 @@ export class ServersExplorer {
     );
 
     vscode.commands.registerCommand(
-      "totvs-developer-studio.disconnect",
+      'totvs-developer-studio.disconnect',
       (serverItem: ServerItem) => {
         if (serverItem.isConnected) {
           vscode.window.setStatusBarMessage(
@@ -276,8 +279,8 @@ export class ServersExplorer {
         } else {
           vscode.window.showInformationMessage(
             localize(
-              "tds.webview.serversView.alreadyConn",
-              "Server is already disconnected"
+              'tds.webview.serversView.alreadyConn',
+              'Server is already disconnected'
             )
           );
           serverProvider.connectedServerItem = undefined;
@@ -286,8 +289,8 @@ export class ServersExplorer {
     );
 
     vscode.commands.registerCommand(
-      "totvs-developer-studio.selectenv",
-      (environment: EnvSection) => {
+      'totvs-developer-studio.selectenv',
+      (environment: EnvironmentTreeItem) => {
         inputConnectionParameters(
           context,
           environment,
@@ -298,7 +301,7 @@ export class ServersExplorer {
     );
 
     vscode.commands.registerCommand(
-      "totvs-developer-studio.delete",
+      'totvs-developer-studio.delete',
       (serverItem: ServerItem) => {
         let ix = serverProvider.localServerItems.indexOf(serverItem);
         if (ix >= 0) {
@@ -308,24 +311,27 @@ export class ServersExplorer {
     );
 
     vscode.commands.registerCommand(
-      "totvs-developer-studio.delete.environment",
-      (environmentItem: EnvSection) => {
+      'totvs-developer-studio.delete.environment',
+      (environmentItem: EnvironmentTreeItem) => {
         Utils.deleteEnvironmentServer(environmentItem);
       }
     );
 
     vscode.commands.registerCommand(
-      "totvs-developer-studio.rename",
+      'totvs-developer-studio.rename',
       (serverItem: ServerItem) => {
         let ix = serverProvider.localServerItems.indexOf(serverItem);
         if (ix >= 0) {
           vscode.window
             .showInputBox({
               placeHolder: localize(
-                "tds.webview.serversView.renameServer",
-                "Rename the server"
+                'tds.webview.serversView.renameServer',
+                'Rename the server'
               ),
-              value: (typeof serverItem.label === "string")?serverItem.label:(serverItem.label as vscode.TreeItemLabel).label,
+              value:
+                typeof serverItem.label === 'string'
+                  ? serverItem.label
+                  : (serverItem.label as vscode.TreeItemLabel).label,
             })
             .then((newName: string) => {
               Utils.updateServerName(serverItem.id, newName);
@@ -356,8 +362,8 @@ export class ServersExplorer {
 
       if (serverId !== undefined && showSucess) {
         vscode.window.showInformationMessage(
-          localize("tds.webview.serversView.serverSaved", "Saved server ") +
-          serverName
+          localize('tds.webview.serversView.serverSaved', 'Saved server ') +
+            serverName
         );
       }
 
@@ -366,17 +372,17 @@ export class ServersExplorer {
 
     function getWebViewContent(context, localizeHTML) {
       const htmlOnDiskPath = vscode.Uri.file(
-        path.join(context.extensionPath, "src", "server", "addServer.html")
+        path.join(context.extensionPath, 'src', 'server', 'addServer.html')
       );
       const cssOniskPath = vscode.Uri.file(
-        path.join(context.extensionPath, "resources", "css", "form.css")
+        path.join(context.extensionPath, 'resources', 'css', 'form.css')
       );
 
       const htmlContent = fs.readFileSync(
-        htmlOnDiskPath.with({ scheme: "vscode-resource" }).fsPath
+        htmlOnDiskPath.with({ scheme: 'vscode-resource' }).fsPath
       );
       const cssContent = fs.readFileSync(
-        cssOniskPath.with({ scheme: "vscode-resource" }).fsPath
+        cssOniskPath.with({ scheme: 'vscode-resource' }).fsPath
       );
 
       let runTemplate = compile(htmlContent);
@@ -416,14 +422,14 @@ export function connectServer(
   if (serverItem.isConnected && serverItem.environment === environment) {
     vscode.window.showInformationMessage(
       localize(
-        "tds.webview.serversView.alreadyConn",
-        "The server selected is already connected."
+        'tds.webview.serversView.alreadyConn',
+        'The server selected is already connected.'
       )
     );
   } else {
     if (serverProvider.connectedServerItem !== undefined) {
       vscode.commands.executeCommand(
-        "totvs-developer-studio.disconnect",
+        'totvs-developer-studio.disconnect',
         serverProvider.connectedServerItem
       );
     }
@@ -436,8 +442,7 @@ export function connectServer(
             if (result.needAuthentication) {
               serverItem.token = result.token;
               inputAuthenticationParameters(serverItem, environment);
-            }
-            else {
+            } else {
               doFinishConnectProcess(serverItem, result.token, environment);
             }
           }
@@ -457,7 +462,7 @@ export function authenticate(
   password: string
 ) {
   const enconding: string =
-    vscode.env.language === "ru"
+    vscode.env.language === 'ru'
       ? ENABLE_CODE_PAGE.CP1251
       : ENABLE_CODE_PAGE.CP1252;
 
@@ -473,7 +478,7 @@ export function authenticate(
       .then(
         (result: IAuthenticationInfo) => {
           let token: string = result.token;
-          return result.sucess ? token : "";
+          return result.sucess ? token : '';
         },
         (error: any) => {
           vscode.window.showErrorMessage(error);
@@ -520,7 +525,7 @@ export function reconnectServer(
   if (connectedServerItem !== undefined) {
     async () =>
       await vscode.commands.executeCommand(
-        "totvs-developer-studio.disconnect",
+        'totvs-developer-studio.disconnect',
         connectedServerItem
       );
   }
@@ -553,5 +558,5 @@ class NodeError {
 }
 
 function handleError(nodeError: NodeError) {
-  vscode.window.showErrorMessage(nodeError.code + ": " + nodeError.message);
+  vscode.window.showErrorMessage(nodeError.code + ': ' + nodeError.message);
 }

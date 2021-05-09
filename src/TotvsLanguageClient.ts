@@ -1,3 +1,18 @@
+/*
+Copyright 2021 TOTVS S.A
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+  http: //www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 import {
   CodeLens,
   commands,
@@ -15,21 +30,26 @@ import {
   TextEditorDecorationType,
   FormattingOptions,
   TextEdit,
-} from "vscode";
+} from 'vscode';
 import {
   CancellationToken,
   LanguageClientOptions,
   RevealOutputChannelOn,
   ServerOptions,
   ProvideOnTypeFormattingEditsSignature,
-} from "vscode-languageclient/lib/main";
+} from 'vscode-languageclient/lib/main';
 import * as vscode from 'vscode';
-import { statSync, chmodSync } from "fs";
-import { reconnectLastServer } from "./serversView";
+import { reconnectLastServer } from './serversView';
 
-import * as nls from "vscode-nls";
-import { syncSettings } from "./server/languageServerSettings";
-import { TotvsLanguageClientA } from "./TotvsLanguageClientA";
+import * as nls from 'vscode-nls';
+import { syncSettings } from './server/languageServerSettings';
+import { TotvsLanguageClientA } from './TotvsLanguageClientA';
+import {
+  IStartLSOptions,
+  startLanguageServer,
+  ITdsLanguageClient,
+} from '@totvs/tds-languageclient';
+import path = require('path');
 
 let localize = nls.loadMessageBundle();
 
@@ -59,18 +79,18 @@ export function getLanguageClient(
             JSON.stringify(clientConfig[key])
         ) {
           const kReload = localize(
-            "tds.webview.totvsLanguegeClient.reload",
-            "Reload"
+            'tds.webview.totvsLanguegeClient.reload',
+            'Reload'
           );
           const message = localize(
-            "tds.webview.totvsLanguegeClient.pleaseReload",
+            'tds.webview.totvsLanguegeClient.pleaseReload',
             "Please reload to apply the 'TOTVS.{0}' configuration change.",
             key
           );
 
           window.showInformationMessage(message, kReload).then((selected) => {
             if (selected === kReload) {
-              commands.executeCommand("workbench.action.reloadWindow");
+              commands.executeCommand('workbench.action.reloadWindow');
             }
           });
           break;
@@ -81,45 +101,22 @@ export function getLanguageClient(
     })
   );
 
-  let args = ["--language-server"].concat(clientConfig["launchArgs"]);
+  const serverOptions: ServerOptions = () => {
+    const options: Partial<IStartLSOptions> = {
+      // logging: false,
+      // trace: 'off',
+      // verbose: 'warn'
+    };
+    const lsServer: ITdsLanguageClient = startLanguageServer(options);
 
-  let env: any = {};
-  let kToForward = ["ProgramData", "PATH", "LD_LIBRARY_PATH", "HOME", "USER"];
-  for (let e of kToForward) {
-    env[e] = process.env[e];
-  }
-
-  let dir = "";
-  let ext = vscode.extensions.getExtension("TOTVS.tds-vscode");
-  if (ext !== undefined) {
-    dir = ext.extensionPath;
-  }
-  let advpls;
-  if (process.platform === "win32") {
-    advpls = dir + "/node_modules/@totvs/tds-ls/bin/windows/advpls.exe";
-  } else if (process.platform === "linux") {
-    advpls = dir + "/node_modules/@totvs/tds-ls/bin/linux/advpls";
-    if (statSync(advpls).mode !== 33261) {
-      chmodSync(advpls, "755");
-    }
-  } else if (process.platform === "darwin") {
-    advpls = dir + "/node_modules/@totvs/tds-ls/bin/mac/advpls";
-    if (statSync(advpls).mode !== 33261) {
-      chmodSync(advpls, "755");
-    }
-  }
-
-  let serverOptions: ServerOptions = {
-    command: advpls,
-    args: args,
-    options: { env: env },
+    return Promise.resolve(lsServer.lsProcess);
   };
 
   // Inline code lens.
   let decorationOpts: DecorationRenderOptions = {
     after: {
-      fontStyle: "italic",
-      color: new ThemeColor("editorCodeLens.foreground"),
+      fontStyle: 'italic',
+      color: new ThemeColor('editorCodeLens.foreground'),
     },
     rangeBehavior: DecorationRangeBehavior.ClosedClosed,
   };
@@ -130,13 +127,13 @@ export function getLanguageClient(
 
   // Options to control the language client
   let clientOptions: LanguageClientOptions = {
-    documentSelector: [{ language: "advpl" }, { language: "4gl" }],
+    documentSelector: [{ language: 'advpl' }, { language: '4gl' }],
     // synchronize: {
     // 	configurationSection: 'cquery',
     // 	fileEvents: workspace.createFileSystemWatcher('**/.cc')
     // },
-    diagnosticCollectionName: "AdvPL",
-    outputChannelName: "TOTVS LS",
+    diagnosticCollectionName: 'AdvPL',
+    outputChannelName: 'TOTVS LS',
     revealOutputChannelOn: RevealOutputChannelOn.Error,
     initializationOptions: clientConfig,
     middleware: {
@@ -158,12 +155,12 @@ export function getLanguageClient(
       isLSInitialized = true;
 
       const configADVPL = vscode.workspace.getConfiguration(
-        "totvsLanguageServer"
+        'totvsLanguageServer'
       ); //transformar em configuracao de workspace
 
       syncSettings();
 
-      let isReconnectLastServer = configADVPL.get("reconnectLastServer");
+      let isReconnectLastServer = configADVPL.get('reconnectLastServer');
       if (isReconnectLastServer) {
         reconnectLastServer();
       }
@@ -181,7 +178,7 @@ export function getLanguageClient(
 function getClientConfig(context: ExtensionContext) {
   function resolveVariablesInString(value: string) {
     let rootPath: string = vscode.workspace.rootPath || process.cwd();
-    return value.replace("${workspaceFolder}", rootPath);
+    return value.replace('${workspaceFolder}', rootPath);
   }
 
   function resolveVariablesInArray(value: any[]) {
@@ -189,7 +186,7 @@ function getClientConfig(context: ExtensionContext) {
   }
 
   function resolveVariables(value: any) {
-    if (typeof value === "string") {
+    if (typeof value === 'string') {
       return resolveVariablesInString(value);
     }
     if (Array.isArray(value)) {
@@ -198,9 +195,9 @@ function getClientConfig(context: ExtensionContext) {
     return value;
   }
 
-  let configMapping = [["launchArgs", "launch.args"]];
+  let configMapping = [['launchArgs', 'launch.args']];
   let clientConfig = {};
-  let config = workspace.getConfiguration("totvsLanguageServer");
+  let config = workspace.getConfiguration('totvsLanguageServer');
 
   for (let prop of configMapping) {
     let value = config.get(prop[1]);
@@ -215,7 +212,7 @@ function getClientConfig(context: ExtensionContext) {
       //		chmodSync(value.toString(),'755');
       //	}
       //}
-      let subprops = prop[0].split(".");
+      let subprops = prop[0].split('.');
       let subconfig = clientConfig;
       for (let subprop of subprops.slice(0, subprops.length - 1)) {
         if (!subconfig.hasOwnProperty(subprop)) {
@@ -257,8 +254,8 @@ function displayCodeLens(
       if (!codeLens.isResolved) {
         console.error(
           localize(
-            "tds.webview.totvsLanguegeClient.codeLensNotResolved",
-            "Code lens is not resolved"
+            'tds.webview.totvsLanguegeClient.codeLensNotResolved',
+            'Code lens is not resolved'
           )
         );
       }
@@ -273,10 +270,10 @@ function displayCodeLens(
       }
 
       let range = new Range(position, position);
-      let title = codeLens.command === undefined ? "" : codeLens.command.title;
+      let title = codeLens.command === undefined ? '' : codeLens.command.title;
       let opt: DecorationOptions = {
         range: range,
-        renderOptions: { after: { contentText: " " + title + " " } },
+        renderOptions: { after: { contentText: ' ' + title + ' ' } },
       };
 
       opts.push(opt);
@@ -294,13 +291,12 @@ function provideOnTypeFormatting(
   token: CancellationToken,
   next: ProvideOnTypeFormattingEditsSignature
 ): ProviderResult<TextEdit[]> {
-
-  const line: vscode.TextLine = document.lineAt(position.line-1);
+  const line: vscode.TextLine = document.lineAt(position.line - 1);
   const text: string = line.text.toLowerCase();
   const range = line.range;
   const result: vscode.TextEdit[] = [];
 
   result.push(vscode.TextEdit.replace(range, text));
-  result.push(vscode.TextEdit.insert(range.start, "AAAAAAA"));
+  result.push(vscode.TextEdit.insert(range.start, 'AAAAAAA'));
   return result;
 }
