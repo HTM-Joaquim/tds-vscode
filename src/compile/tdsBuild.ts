@@ -9,55 +9,29 @@ var windows1251 = require('windows-1251');
 
 import * as nls from 'vscode-nls';
 import { ResponseError } from 'vscode-languageclient';
-import { CompileResult } from './CompileResult';
-import { sendCompilation } from '../protocolMessages';
 import { IServerItem, serverManager } from '../serverManager';
+import { ICompileResult, ICompileOptions } from '@totvs/tds-languageclient';
+import { TDSConfiguration } from '../configurations';
 let localize = nls.loadMessageBundle();
 
-interface CompileOptions {
-  recompile: boolean;
-  debugAphInfo: boolean;
-  gradualSending: boolean;
-  generatePpoFile: boolean;
-  showPreCompiler: boolean;
-  priorVelocity: boolean;
-  returnPpo: boolean;
-  commitWithErrorOrWarning: boolean;
-}
-
-//TODO: pegar as opções de compilação da configuração (talvez por server? ou workspace?)
-function _getCompileOptionsDefault(): CompileOptions {
-  let config = vscode.workspace.getConfiguration('totvsLanguageServer');
-  let generatePpoFile = config.get('compilation.generatePpoFile');
-  let showPreCompiler = config.get('compilation.showPreCompiler');
-  let commitWithErrorOrWarning = config.get(
-    'compilation.commitWithErrorOrWarning'
-  );
-
-  return {
-    recompile: false,
-    debugAphInfo: true,
-    gradualSending: true,
-    generatePpoFile: generatePpoFile as boolean,
-    showPreCompiler: showPreCompiler as boolean,
-    priorVelocity: true,
-    returnPpo: false,
-    commitWithErrorOrWarning: commitWithErrorOrWarning as boolean,
-  };
+function getCompileOptions(
+  options?: Partial<ICompileOptions>
+): ICompileOptions {
+  return { ...TDSConfiguration.compileOptions(), ...options };
 }
 
 export function generatePpo(filePath: string, options?: any): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    if (!filePath || filePath.length == 0) {
-      reject(new Error('Undefined filePath.'));
-      return;
-    }
-    if (!fs.existsSync(filePath)) {
-      reject(new Error("File '" + filePath + "' not found."));
-      return;
-    }
+    // if (!filePath || filePath.length == 0) {
+    //   reject(new Error('Undefined filePath.'));
+    //   return;
+    // }
+    // if (!fs.existsSync(filePath)) {
+    //   reject(new Error("File '" + filePath + "' not found."));
+    //   return;
+    // }
 
-    const server: IServerItem = serverManager.currentServer();
+    const server: IServerItem = serverManager.currentServer;
     if (!server) {
       reject(
         new Error(
@@ -75,40 +49,19 @@ export function generatePpo(filePath: string, options?: any): Promise<string> {
       return;
     }
 
-    const includes = server.includes();
-    serverManager.currentServer().getIncludes(true, serverItem) || [];
-    let includesUris: Array<string> = includes.map((include) => {
-      return vscode.Uri.file(include).toString();
+    const compileOptions = getCompileOptions({
+      filesUris: [vscode.Uri.file(filePath).toString()],
+      includesUris: serverManager.getIncludes(true, server) || [],
+      extraOptions: {
+        recompile: true,
+        // generatePpoFile: false,
+        // showPreCompiler: false,
+        returnPpo: true,
+      },
     });
-    if (includesUris.length == 0) {
-      reject(new Error('Includes undefined.'));
-      return;
-    }
 
-    let filesUris: Array<string> = [];
-    filesUris.push(vscode.Uri.file(filePath).toString());
-
-    //const configADVPL = vscode.workspace.getConfiguration("totvsLanguageServer");
-    let extensionsAllowed: string[];
-    // if (configADVPL.get("folder.enableExtensionsFilter", true)) {
-    //   extensionsAllowed = configADVPL.get("folder.extensionsAllowed", []); // Le a chave especifica
-    // }
-
-    const compileOptions = _getCompileOptionsDefault();
-    compileOptions.recompile = true;
-    compileOptions.generatePpoFile = false;
-    compileOptions.showPreCompiler = false;
-    compileOptions.returnPpo = true;
-
-    sendCompilation(
-      server,
-      includesUris,
-      filesUris,
-      compileOptions,
-      extensionsAllowed,
-      isAdvplsource
-    ).then(
-      (response: CompileResult) => {
+    server.compile(compileOptions).then(
+      (response: ICompileResult) => {
         if (response.compileInfos.length > 0) {
           for (let index = 0; index < response.compileInfos.length; index++) {
             const compileInfo = response.compileInfos[index];
@@ -132,7 +85,7 @@ export function generatePpo(filePath: string, options?: any): Promise<string> {
                   encoding === 'windows-1251' ||
                   encoding === 'cp1251'
                 ) {
-                  //let helloWorld = "Привет мир";
+                  //let helloWorld = 'Привет мир';
                   //console.log(helloWorld);
                   //resolve(windows1251.encode(helloWorld));
                   resolve(windows1251.encode(compileInfo.detail));
@@ -163,35 +116,38 @@ export function buildFile(
   recompile: boolean,
   context: vscode.ExtensionContext
 ) {
-  const compileOptions = _getCompileOptionsDefault();
-  compileOptions.recompile = recompile;
-  buildCode(filename, compileOptions, context);
+  const compileOptions: Partial<ICompileOptions> = getCompileOptions();
+  compileOptions.extraOptions.recompile = recompile;
+
+  buildCode(serverManager.currentServer, filename, compileOptions, context);
 }
 
 /**
  * Build a file list.
  */
 async function buildCode(
+  server: IServerItem,
   filesPaths: string[],
-  compileOptions: CompileOptions,
+  options: Partial<ICompileOptions>,
   context: vscode.ExtensionContext
 ) {
-  const server = Utils.getCurrentServer();
+  if (!server) {
+    vscode.window.showErrorMessage(
+      localize('tds.webview.tdsBuild.noServer', 'No server connected')
+    );
+  }
 
-  const configADVPL = vscode.workspace.getConfiguration('totvsLanguageServer');
-  const shouldClearConsole = configADVPL.get('clearConsoleBeforeCompile');
-  if (shouldClearConsole !== false) {
+  if (TDSConfiguration.isClearConsoleBeforeCompile()) {
     languageClient.outputChannel.clear();
   }
-  const showConsoleOnCompile = configADVPL.get('showConsoleOnCompile');
-  if (showConsoleOnCompile !== false) {
+
+  if (TDSConfiguration.isShowConsoleOnCompile()) {
     languageClient.outputChannel.show();
   }
 
-  const resourcesToConfirm: vscode.TextDocument[] = vscode.workspace.textDocuments.filter(
+  const count: number = vscode.workspace.textDocuments.filter(
     (d) => !d.isUntitled && d.isDirty
-  );
-  const count = resourcesToConfirm.length;
+  ).length;
 
   if (count !== 0) {
     if (!vscode.workspace.saveAll(false)) {
@@ -203,102 +159,89 @@ async function buildCode(
       );
       return;
     }
+
     vscode.window.showWarningMessage(
       localize('tds.webview.tdsBuild.saved', 'Files saved successfully.')
     );
   }
 
-  if (server) {
-    //Só faz sentido processar os includes se existir um servidor selecionado onde sera compilado.
-    let serverItem = Utils.getServerById(server.id);
-    let hasAdvplsource: boolean =
-      filesPaths.filter((file) => {
-        return Utils.isAdvPlSource(file);
-      }).length > 0;
-    let includes: Array<string> = [];
+  let hasAdvplsource: boolean =
+    filesPaths.filter((file) => {
+      return Utils.isAdvPlSource(file);
+    }).length > 0;
+  let includes: Array<string> = [];
 
-    if (hasAdvplsource) {
-      includes = Utils.getIncludes(true, serverItem) || [];
-      if (!includes.toString()) {
-        return;
-      }
+  if (hasAdvplsource) {
+    includes = serverManager.getIncludes(true, server) || [];
+    if (!includes.toString()) {
+      return;
     }
-
-    let includesUris: Array<string> = [];
-    for (let idx = 0; idx < includes.length; idx++) {
-      includesUris.push(vscode.Uri.file(includes[idx]).toString());
-    }
-    if (includesUris.length === 0) {
-      const wp: string[] = vscode.workspace.workspaceFolders.map((uri) => {
-        return uri.uri.toString();
-      });
-      includesUris.push(...wp);
-    }
-
-    let filesUris: Array<string> = [];
-    filesPaths.forEach((file) => {
-      if (!Utils.ignoreResource(file)) {
-        filesUris.push(vscode.Uri.file(file).toString());
-      } else {
-        languageClient.warn(
-          localize(
-            'tds.webview.tdsBuild.resourceInList',
-            'Resource appears in the list of files to ignore. Resource: {0}',
-            file
-          )
-        );
-      }
-    });
-
-    let extensionsAllowed: string[];
-    if (configADVPL.get('folder.enableExtensionsFilter', true)) {
-      extensionsAllowed = configADVPL.get('folder.extensionsAllowed', []); // Le a chave especifica
-    }
-
-    sendCompilation(
-      server,
-      includesUris,
-      filesUris,
-      compileOptions,
-      extensionsAllowed,
-      hasAdvplsource
-    ).then(
-      (response: CompileResult) => {
-        if (response.returnCode === 40840) {
-          Utils.removeExpiredAuthorization();
-        }
-        if (response.compileInfos.length > 0) {
-          // Exibe aba problems casa haja pelo menos um erro ou warning
-          let showProblems = false;
-          for (let index = 0; index < response.compileInfos.length; index++) {
-            const compileInfo = response.compileInfos[index];
-            if (
-              compileInfo.status === 'FATAL' ||
-              compileInfo.status === 'ERROR' ||
-              compileInfo.status === 'WARN'
-            ) {
-              showProblems = true;
-              break;
-            }
-          }
-          if (showProblems) {
-            // focus
-            vscode.commands.executeCommand('workbench.action.problems.focus');
-          }
-          if (context !== undefined) {
-            verifyCompileResult(response, context);
-          }
-        }
-      },
-      (err: ResponseError<object>) => {
-        vscode.window.showErrorMessage(err.message);
-      }
-    );
-  } else {
-    vscode.window.showErrorMessage(
-      localize('tds.webview.tdsBuild.noServer', 'No server connected')
-    );
   }
+
+  let includesUris: Array<string> = [];
+  for (let idx = 0; idx < includes.length; idx++) {
+    includesUris.push(vscode.Uri.file(includes[idx]).toString());
+  }
+  if (includesUris.length === 0) {
+    const wp: string[] = vscode.workspace.workspaceFolders.map((uri) => {
+      return uri.uri.toString();
+    });
+    includesUris.push(...wp);
+  }
+
+  let filesUris: Array<string> = [];
+  filesPaths.forEach((file) => {
+    if (!serverManager.isIgnoreResource(file)) {
+      filesUris.push(vscode.Uri.file(file).toString());
+    } else {
+      languageClient.warn(
+        localize(
+          'tds.webview.tdsBuild.resourceInList',
+          'Resource appears in the list of files to ignore. Resource: {0}',
+          file
+        )
+      );
+    }
+  });
+
+  const compileOptions = getCompileOptions({
+    filesUris: filesUris,
+    includesUris: serverManager.getIncludes(true, server) || [],
+    ...options,
+  });
+
+  server.compile(compileOptions).then(
+    (response: ICompileResult) => {
+      if (response.returnCode === 40840) {
+        serverManager.deletePermissionsInfos();
+      }
+      if (response.compileInfos.length > 0) {
+        // Exibe aba problems casa haja pelo menos um erro ou warning
+        let showProblems = false;
+        for (let index = 0; index < response.compileInfos.length; index++) {
+          const compileInfo = response.compileInfos[index];
+          if (
+            compileInfo.status === 'FATAL' ||
+            compileInfo.status === 'ERROR' ||
+            compileInfo.status === 'WARN'
+          ) {
+            showProblems = true;
+            break;
+          }
+        }
+        if (showProblems) {
+          // focus
+          vscode.commands.executeCommand('workbench.action.problems.focus');
+        }
+        if (context !== undefined) {
+          verifyCompileResult(response, context);
+        }
+      }
+    },
+    (err: ResponseError<object>) => {
+      vscode.window.showErrorMessage(err.message);
+    }
+  );
 }
 
 function verifyCompileResult(response, context) {
@@ -459,9 +402,7 @@ export async function commandBuildOpenEditors(
   } while (true);
   // check if there are files to compile
   if (files.length > 0) {
-    const compileOptions = _getCompileOptionsDefault();
-    compileOptions.recompile = recompile;
-    buildCode(files, compileOptions, context);
+    buildFile(files, recompile, context);
   } else {
     vscode.window.showWarningMessage('There is nothing to compile');
   }

@@ -39,7 +39,10 @@ export interface IServerManager {
   // toggleWorkspaceServerConfig();
   isConnected(server: IServerItem): boolean;
   loadFromFile(file: string): TDSConfiguration.ITDSConfiguration;
-  saveToFile(file: string, content: TDSConfiguration.ITDSConfiguration);
+  saveToFile(file: string, content: TDSConfiguration.ITDSConfiguration): void;
+  getIncludes(absolutePath: boolean, server?: IServerItem): Array<string>;
+  isIgnoreResource(file: string): boolean;
+  deletePermissionsInfos(): void;
 }
 
 export declare type ServerType = ServerTypeValues;
@@ -94,6 +97,10 @@ class ServerManager implements IServerManager {
 
       this._onDidChange.fire({ name: 'load', data: this.servers });
     });
+  }
+
+  isIgnoreResource(file: string): boolean {
+    return processIgnoreList(ignoreListExpressions, path.basename(file));
   }
 
   isConnected(server: ServerItem) {
@@ -321,8 +328,8 @@ class ServerManager implements IServerManager {
    * Recupera a lista de includes do arquivod servers.json
    */
   getIncludes(
-    server: IServerItem,
-    absolutePath: boolean = false
+    absolutePath: boolean = false,
+    server?: IServerItem
   ): Array<string> {
     let includes: Array<string>;
 
@@ -381,6 +388,56 @@ class ServerManager implements IServerManager {
 
     return includes;
   }
+}
+
+//TODO: pegar a lista de arquivos a ignorar da configuração
+const ignoreListExpressions: Array<RegExp> = [];
+ignoreListExpressions.push(/(.*)?(\.vscode)$/gi); //.vscode
+//ignoreListExpressions.push(/(\.)$/ig); // sem extensão (não é possivel determinar se é fonte ou recurso)
+ignoreListExpressions.push(/(.+)(\.erx_)$/gi); // arquivos de definição e trabalho
+ignoreListExpressions.push(/(.+)(\.ppx_)$/gi); // arquivos de definição e trabalho
+ignoreListExpressions.push(/(.+)(\.err)$/gi); // arquivos de definição e trabalho
+
+//lista de arquivos/pastas normalmente ignorados
+ignoreListExpressions.push(/(.*)?(#.*#)$/gi);
+ignoreListExpressions.push(/(.*)?(\.#*)$/gi);
+ignoreListExpressions.push(/(.*)?(%.*%)$/gi);
+ignoreListExpressions.push(/(.*)?(\._.*)$/gi);
+ignoreListExpressions.push(/(.*)?(CVS)$/gi);
+ignoreListExpressions.push(/(.*)?.*(CVS)$/gi);
+ignoreListExpressions.push(/(.*)?(\.cvsignore)$/gi);
+ignoreListExpressions.push(/(.*)?(SCCS)$/gi);
+ignoreListExpressions.push(/(.*)?.*\/SCCS\/.*$/gi);
+ignoreListExpressions.push(/(.*)?(vssver\.scc)$/gi);
+ignoreListExpressions.push(/(.*)?(\.svn)$/gi);
+ignoreListExpressions.push(/(.*)?(\.DS_Store)$/gi);
+ignoreListExpressions.push(/(.*)?(\.git)$/gi);
+ignoreListExpressions.push(/(.*)?(\.gitattributes)$/gi);
+ignoreListExpressions.push(/(.*)?(\.gitignore)$/gi);
+ignoreListExpressions.push(/(.*)?(\.gitmodules)$/gi);
+ignoreListExpressions.push(/(.*)?(\.hg)$/gi);
+ignoreListExpressions.push(/(.*)?(\.hgignore)$/gi);
+ignoreListExpressions.push(/(.*)?(\.hgsub)$/gi);
+ignoreListExpressions.push(/(.*)?(\.hgsubstate)$/gi);
+ignoreListExpressions.push(/(.*)?(\.hgtags)$/gi);
+ignoreListExpressions.push(/(.*)?(\.bzr)$/gi);
+ignoreListExpressions.push(/(.*)?(\.bzrignore)$/gi);
+
+function processIgnoreList(
+  ignoreList: Array<RegExp>,
+  testName: string
+): boolean {
+  let result: boolean = false;
+
+  for (let index = 0; index < ignoreList.length; index++) {
+    const regexp = ignoreList[index];
+    if (regexp.test(testName)) {
+      result = true;
+      break;
+    }
+  }
+
+  return result;
 }
 
 export const serverManager: IServerManager = new ServerManager();

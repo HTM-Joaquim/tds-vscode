@@ -16,6 +16,7 @@ limitations under the License.
 
 import path = require('path');
 import * as vscode from 'vscode';
+import { ICompileOptions } from '../../tds-languageclient/typings/src';
 import { IRpoToken } from './rpoToken';
 
 const homedir = require('os').homedir();
@@ -79,5 +80,54 @@ export namespace TDSConfiguration {
       'workspaceServerConfig',
       !config.get('workspaceServerConfig')
     );
+  }
+
+  function getExtensionsAllowed() {
+    let extensionsAllowed: string[];
+
+    if (config.get('folder.enableExtensionsFilter', true)) {
+      extensionsAllowed = config.get('folder.extensionsAllowed', []); // Le a chave especifica
+    }
+
+    return extensionsAllowed;
+  }
+
+  function getGeneratePPO(): boolean {
+    return config.get('compilation.generatePpoFile');
+  }
+
+  function getShowPreCompiler(): boolean {
+    return config.get('compilation.showPreCompiler');
+  }
+
+  function getCommitWithErrorOrWarning(): boolean {
+    return config.get('compilation.commitWithErrorOrWarning');
+  }
+
+  export function compileOptions(): ICompileOptions {
+    return {
+      authorizationToken: '',
+      extensionsAllowed: getExtensionsAllowed(),
+      filesUris: [],
+      includesUris: [],
+      extraOptions: {
+        recompile: false,
+        debugAphInfo: true,
+        gradualSending: true,
+        priorVelocity: true,
+        returnPpo: false,
+        generatePpoFile: getGeneratePPO(),
+        showPreCompiler: getShowPreCompiler(),
+        commitWithErrorOrWarning: getCommitWithErrorOrWarning(),
+      },
+    };
+  }
+
+  export function isClearConsoleBeforeCompile(): boolean {
+    return config.get('clearConsoleBeforeCompile');
+  }
+
+  export function isShowConsoleOnCompile(): boolean {
+    return config.get('showConsoleOnCompile');
   }
 }
