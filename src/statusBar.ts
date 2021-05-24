@@ -1,21 +1,21 @@
 import * as vscode from 'vscode';
 import * as nls from 'vscode-nls';
-import { CompileKey } from './compileKey/compileKey';
-import { sendRpoToken } from './_protocolMessages';
+import { TDSConfiguration } from './configurations';
+import { IRpoToken } from './rpoToken';
 import {
-  getRpoTokenFromFile,
-  getRpoTokenFromString,
-  IRpoToken,
-} from './rpoToken';
-import { ServerItem } from './serverItemProvider';
-import Utils from './utils';
+  EventData,
+  ICompileKey,
+  IServerDebugger,
+  IServerManager,
+  serverManager,
+} from './serverManager';
 
 const localize = nls.config({
   locale: vscode.env.language,
   bundleFormat: nls.BundleFormat.standalone,
 })();
 
-let totvsStatusBarItem: vscode.StatusBarItem;
+let currentServerBarItem: vscode.StatusBarItem;
 let saveLocationBarItem: vscode.StatusBarItem;
 let permissionStatusBarItem: vscode.StatusBarItem;
 let settingsStatusBarItem: vscode.StatusBarItem;
@@ -25,89 +25,63 @@ const priorityTotvsStatusBarItem: number = 103;
 const priorityRpoTokenStatusBarItem: number = 102;
 const priorityPermissionStatusBarItem: number = 101;
 const prioritySettingsStatusBarItem: number = 100;
-const prioritySaveLocationBarItem: number = 100;
 
 export function initStatusBarItems(context: vscode.ExtensionContext) {
   initStatusBarItem(context);
-  initSaveLocationBarItem(context);
   initPermissionStatusBarItem(context);
   initRpoTokenStatusBarItem(context);
   initSettingsBarItem(context);
 }
 
-export function updateStatusBarItems() {
-  updateStatusBarItem(undefined);
-  updateSaveLocationBarItem();
-  updatePermissionStatusBarItem();
-  updateRpoTokenStatusBarItem();
-  updateSettingsBarItem();
-}
+// function updateStatusBarItems() {
+//   updateStatusBarItem(undefined);
+//   updateSaveLocationBarItem();
+//   updatePermissionStatusBarItem();
+//   updateRpoTokenStatusBarItem();
+//   updateSettingsBarItem();
+// }
 
 function initStatusBarItem(context: vscode.ExtensionContext) {
-  totvsStatusBarItem = vscode.window.createStatusBarItem(
+  currentServerBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
     priorityTotvsStatusBarItem
   );
-  totvsStatusBarItem.command = 'totvs-developer-studio.serverSelection';
-  totvsStatusBarItem.text =
+  currentServerBarItem.command = 'totvs-developer-studio.serverSelection';
+  currentServerBarItem.text =
     '$(server-environment-spin)' +
     localize('tds.vscode.initializing', '(initializing)');
-  totvsStatusBarItem.tooltip = totvsStatusBarItem.text;
+  currentServerBarItem.tooltip = currentServerBarItem.text;
 
-  context.subscriptions.push(totvsStatusBarItem);
   context.subscriptions.push(
-    Utils.onDidSelectedServer((newServer: ServerItem) => {
-      updateStatusBarItem(newServer);
+    currentServerBarItem,
+    serverManager.onDidChange((event: EventData) => {
+      if (event.name === 'change' && event.property === 'currentServer') {
+        updateStatusBarItem(event.value.new);
+      }
     })
   );
 
-  updateStatusBarItem(undefined);
+  //updateStatusBarItem(undefined);
 }
 
-function updateStatusBarItem(selectServer: ServerItem | undefined): void {
-  totvsStatusBarItem.text = `$(server-environment) `;
+function updateStatusBarItem(selectServer: IServerDebugger | undefined): void {
+  currentServerBarItem.text = `$(server-environment) `;
 
   if (selectServer) {
-    totvsStatusBarItem.text += `${selectServer.name} / ${selectServer.environment}`;
-    totvsStatusBarItem.tooltip = `Address: ${selectServer.address}`;
+    currentServerBarItem.text += `${selectServer.name} / ${selectServer.environment}`;
+    currentServerBarItem.tooltip = `Address: ${selectServer.address}`;
   } else {
-    totvsStatusBarItem.text += localize(
+    currentServerBarItem.text += localize(
       'tds.vscode.select_server_environment',
       'Select server/environment'
     );
-    totvsStatusBarItem.tooltip = localize(
+    currentServerBarItem.tooltip = localize(
       'tds.vscode.select_server_environment.tooltip',
       'Select a server and environment in the server view'
     );
   }
 
-  totvsStatusBarItem.show();
-}
-
-function initSaveLocationBarItem(context: vscode.ExtensionContext) {
-  saveLocationBarItem = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Left,
-    prioritySaveLocationBarItem
-  );
-  saveLocationBarItem.command = 'totvs-developer-studio.toggleSaveLocation';
-
-  context.subscriptions.push(saveLocationBarItem);
-
-  updateSaveLocationBarItem();
-}
-
-function updateSaveLocationBarItem() {
-  const workspace: boolean = Utils.isWorkspaceServerConfig();
-  const location: string = Utils.getServerConfigFile();
-
-  if (workspace) {
-    saveLocationBarItem.text = '$(globe)';
-  } else {
-    saveLocationBarItem.text = '$(home)';
-  }
-  saveLocationBarItem.tooltip = location;
-
-  saveLocationBarItem.show();
+  currentServerBarItem.show();
 }
 
 function initPermissionStatusBarItem(context: vscode.ExtensionContext) {
@@ -116,17 +90,19 @@ function initPermissionStatusBarItem(context: vscode.ExtensionContext) {
     priorityPermissionStatusBarItem
   );
   permissionStatusBarItem.command = 'totvs-developer-studio.compile.key';
-  context.subscriptions.push(permissionStatusBarItem);
   context.subscriptions.push(
-    Utils.onDidSelectedKey(updatePermissionStatusBarItem)
+    permissionStatusBarItem,
+    serverManager.onDidChange((event: EventData) => {
+      if (event.name === 'change' && event.property === 'compileKey') {
+        updatePermissionStatusBarItem(event.value);
+      }
+    })
   );
 
-  updatePermissionStatusBarItem();
+  //updatePermissionStatusBarItem();
 }
 
-function updatePermissionStatusBarItem(): void {
-  const infos: CompileKey = Utils.getPermissionsInfos();
-
+function updatePermissionStatusBarItem(infos: ICompileKey): void {
   if (infos && infos.authorizationToken && infos.buildType && infos.expire) {
     const [dd, mm, yyyy] = infos.expire.split('/');
     const expiryDate: Date = new Date(`${yyyy}-${mm}-${dd} 23:59:59`);
@@ -160,6 +136,7 @@ function updatePermissionStatusBarItem(): void {
     permissionStatusBarItem.tooltip = '';
   }
   permissionStatusBarItem.text = `$(key) ${permissionStatusBarItem.text}`;
+
   permissionStatusBarItem.show();
 }
 
@@ -175,22 +152,22 @@ function initRpoTokenStatusBarItem(context: vscode.ExtensionContext) {
     'Select file with RPO token'
   );
 
-  context.subscriptions.push(rpoTokenStatusBarItem);
   context.subscriptions.push(
-    Utils.onDidSelectedServer(updateRpoTokenStatusBarItem)
-  );
-  context.subscriptions.push(
-    Utils.onDidRpoTokenSelected(updateRpoTokenStatusBarItem)
+    rpoTokenStatusBarItem,
+    serverManager.onDidChange((event: EventData) => {
+      if (event.name === 'change' && event.property === 'rpoToken') {
+        updateRpoTokenStatusBarItem(event.value);
+      }
+    })
   );
 
   rpoTokenStatusBarItem.show();
 }
 
-function updateRpoTokenStatusBarItem(): void {
+function updateRpoTokenStatusBarItem(rpoToken: IRpoToken): void {
   let text: string = 'RPO ';
   let tooltip: string = '';
 
-  const rpoToken: IRpoToken = Utils.getRpoTokenInfos();
   if (rpoToken) {
     const error: string = rpoToken.error; // || rpoAux.error;
     const warning: string = rpoToken.warning; // || rpoAux.warning;
@@ -213,10 +190,7 @@ function initSettingsBarItem(context: vscode.ExtensionContext): void {
 }
 
 function updateSettingsBarItem(): void {
-  let config: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration(
-    'totvsLanguageServer'
-  );
-  let behavior = config.get('editor.toggle.autocomplete');
+  let behavior: string = TDSConfiguration.autocompleteBehavior() ? 'LS' : '**';
 
   settingsStatusBarItem.text = `${behavior}`;
   settingsStatusBarItem.tooltip =

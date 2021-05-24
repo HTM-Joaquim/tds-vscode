@@ -22,8 +22,8 @@ import {
 } from "./rpoInfoPanelMemento";
 import { i18n } from "../helper";
 import RpoInfoTheme, { inputTextStyles, useToolbarStyles } from "../helper/theme";
-import { IRpoInfoData, IRpoPatch } from "../rpoPath";
-import { FilledInput, FormControl, Grid, Input, InputLabel, SvgIconProps, Typography } from "@material-ui/core";
+import { IRpoPatch } from '@totvs/tds-languageclient';
+import { Grid, SvgIconProps, Typography } from "@material-ui/core";
 import TreeView from '@material-ui/lab/TreeView';
 import TreeItem, { TreeItemProps } from '@material-ui/lab/TreeItem';
 import TextField from '@material-ui/core/TextField';
@@ -225,7 +225,7 @@ export default function RpoLogPanel(props: IRpoInfoPanel) {
 
       switch (message.command) {
         case RpoInfoPanelAction.UpdateRpoInfo: {
-          const rpoInfo: IRpoInfoData = message.data.rpoInfo;
+          const rpoInfo: any = message.data.rpoInfo; //@acandido IRpoInfoData
           const treeNodes: any = message.data.treeNodes;
 
           setData(treeNodes);

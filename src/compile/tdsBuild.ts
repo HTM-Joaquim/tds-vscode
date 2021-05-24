@@ -9,7 +9,7 @@ var windows1251 = require('windows-1251');
 
 import * as nls from 'vscode-nls';
 import { ResponseError } from 'vscode-languageclient';
-import { IServerItem, serverManager } from '../serverManager';
+import { IServerDebugger, serverManager } from '../serverManager';
 import { ICompileResult, ICompileOptions } from '@totvs/tds-languageclient';
 import { TDSConfiguration } from '../configurations';
 let localize = nls.loadMessageBundle();
@@ -31,7 +31,7 @@ export function generatePpo(filePath: string, options?: any): Promise<string> {
     //   return;
     // }
 
-    const server: IServerItem = serverManager.currentServer;
+    const server: IServerDebugger = serverManager.currentServer;
     if (!server) {
       reject(
         new Error(
@@ -49,13 +49,12 @@ export function generatePpo(filePath: string, options?: any): Promise<string> {
       return;
     }
 
+    const includes: string[] = getIncludes(server);
     const compileOptions = getCompileOptions({
       filesUris: [vscode.Uri.file(filePath).toString()],
-      includesUris: serverManager.getIncludes(true, server) || [],
+      includesUris: server.includes || [],
       extraOptions: {
         recompile: true,
-        // generatePpoFile: false,
-        // showPreCompiler: false,
         returnPpo: true,
       },
     });
@@ -126,7 +125,7 @@ export function buildFile(
  * Build a file list.
  */
 async function buildCode(
-  server: IServerItem,
+  server: IServerDebugger,
   filesPaths: string[],
   options: Partial<ICompileOptions>,
   context: vscode.ExtensionContext

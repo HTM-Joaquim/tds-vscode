@@ -13,197 +13,297 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+import {
+  BuildVersion,
+  TLSServerDebugger,
+  TLSServerMonitor,
+  LSServerType,
+  ILSServerAttributes,
+  IUserData,
+} from '@totvs/tds-languageclient';
 import * as fs from 'fs';
-import stripJsonComments = require('strip-json-comments');
-import { TDSConfiguration } from './configurations';
 import * as vscode from 'vscode';
 import * as nls from 'vscode-nls';
+import { TDSConfiguration } from './configurations';
 import { IRpoToken } from './rpoToken';
-import { CompileKey } from './compileKey/compileKey';
-import {
-  ServerTypeValues,
-  LSServerInformation,
-  ILSServer,
-  LSOptions,
-} from '@totvs/tds-languageclient';
+import stripJsonComments = require('strip-json-comments');
 import path = require('path');
+import ini = require('ini');
+import { ServerDebugger } from './serverDebugger';
+import { ServerMonitor } from './serverMonitor';
+import { serverJsonFileWatcher } from './serverJsonWatcher';
+import {
+  IServerConfiguration,
+  ServerConfiguration,
+} from './serverConfiguration';
+import Utils from './utils';
 
 const localize = nls.loadMessageBundle();
+const _homedir: string = require('os').homedir();
+const globalFolder: string = path.join(_homedir, '.totvsls');
+
+export interface ICompileKey {
+  path: string;
+  machineId: string;
+  issued: string;
+  expire: string;
+  buildType: string;
+  tokenKey: string;
+  authorizationToken: string;
+  userId: string;
+}
+
+export interface IAuthorization {
+  id: string;
+  generation: string;
+  validation: string;
+  permission: string;
+  key: string;
+}
 
 export interface IServerManager {
-  servers: Array<IServerItem>;
-  currentServer: IServerItem;
+  userFile: string;
+  enableEvents: boolean;
+  folders: string[];
+  //servers: Array<IServerDebugger>;
+  currentServer: IServerDebugger;
+  //smartClientBin: string;
 
   readonly onDidChange: vscode.Event<EventData>;
 
-  // toggleWorkspaceServerConfig();
-  isConnected(server: IServerItem): boolean;
-  loadFromFile(file: string): TDSConfiguration.ITDSConfiguration;
-  saveToFile(file: string, content: TDSConfiguration.ITDSConfiguration): void;
-  getIncludes(absolutePath: boolean, server?: IServerItem): Array<string>;
-  isIgnoreResource(file: string): boolean;
+  saveRpoTokenInfos(rpoToken: IRpoToken): void;
   deletePermissionsInfos(): void;
+  savePermissionsInfos(infos: ICompileKey): void;
+  getPermissionsInfos(): ICompileKey;
+  isSafeRPO(server: IServerDebugger): boolean;
+  fireEvent(name: EventName, property: EventProperty, value: any): void;
+  addServersDefinitionFile(file: vscode.Uri): void;
+  getConfigurations(folder: string): IServerConfiguration;
+  isConnected(server: IServerDebugger): boolean;
+  saveToFile(file: string, content: IServerConfiguration): void;
+  isIgnoreResource(file: string): boolean;
+  getServerDebugger(
+    folder: string,
+    debuggerServer: Partial<IServerDebugger>
+  ): IServerDebugger;
+  getServerMonitor(debuggerServer: Partial<IServerDebugger>): IServerMonitor;
+  readCompileKeyFile(path: string): IAuthorization;
 }
 
-export declare type ServerType = ServerTypeValues;
-export type EventName = 'load' | 'change' | 'connected' | 'add' | 'remove';
+export declare type EventName = 'load' | 'change' | 'add' | 'remove';
+export declare type EventProperty =
+  | 'servers'
+  | 'currentServer'
+  | 'rpoToken'
+  | 'compileKey'
+  | 'includePath'
+  | 'smartClientBin';
+
 export interface EventData {
   name: EventName;
-  data: any;
+  property: EventProperty;
+  value: any;
 }
 
-interface _IServerItem {
+interface _IServerDebugger {
+  isConnected(): boolean;
+  removeEnvironment(name: string): boolean;
+  addEnvironment(name: string): boolean;
+  generateWsl(url: string);
+}
+
+export interface IServerDebuggerAttributes {
+  parent: IServerConfiguration;
   includes: string[];
   environments: string[];
   username: string;
   smartclientBin: string;
-
-  isConnected(): boolean;
+  patchGenerateDir: string;
 }
 
-export type IServerItem = ILSServer & _IServerItem;
+export interface IServerMonitorAttributes {}
 
-export class ServerItem extends LSServerInformation implements IServerItem {
-  includes: string[];
-  environments: string[] = [];
-  username: string = '';
-  smartclientBin: string = '';
-
-  public constructor(
-    id: string,
-    serverName: string,
-    options?: Partial<LSOptions>
-  ) {
-    super(id, serverName, options);
-  }
-
-  isConnected(): boolean {
-    return serverManager.isConnected(this);
-  }
+export interface IGetUsersData {
+  servers: any[];
+  users: IUserData[];
 }
+
+interface _IServerMonitor {
+  getUsersData(): Promise<IGetUsersData>;
+}
+
+export declare type IServerDebugger = TLSServerDebugger &
+  IServerDebuggerAttributes &
+  _IServerDebugger;
+
+export declare type IServerMonitor = TLSServerMonitor &
+  IServerMonitorAttributes &
+  _IServerMonitor;
 
 class ServerManager implements IServerManager {
-  private _config: TDSConfiguration.ITDSConfiguration;
-  private _currentServer: IServerItem;
+  private _configMap: Map<string, IServerConfiguration> = new Map<
+    string,
+    IServerConfiguration
+  >();
+  private _currentServer: IServerDebugger;
   private _onDidChange: vscode.EventEmitter<EventData> = new vscode.EventEmitter<EventData>();
+  private _enableEvents: boolean = true;
+
+  public get enableEvents(): boolean {
+    return this._enableEvents;
+  }
+
+  public set enableEvents(value: boolean) {
+    this._enableEvents = value;
+
+    if (value) {
+      this.fireEvent('load', 'servers', undefined);
+    }
+  }
 
   readonly onDidChange: vscode.Event<EventData> = this._onDidChange.event;
+  readonly userFile: string;
 
   constructor() {
-    this._config = this.loadFromFile(TDSConfiguration.getServerConfigFile());
-
-    vscode.workspace.onDidChangeConfiguration(() => {
-      this._config = this.loadFromFile(TDSConfiguration.getServerConfigFile());
-
-      this._onDidChange.fire({ name: 'load', data: this.servers });
-    });
-  }
-
-  isIgnoreResource(file: string): boolean {
-    return processIgnoreList(ignoreListExpressions, path.basename(file));
-  }
-
-  isConnected(server: ServerItem) {
-    return (
-      this.currentServer !== undefined &&
-      (this.currentServer as ILSServer).id === (server as ILSServer).id
+    this.userFile = path.join(globalFolder, Utils.SERVER_DEFINITION_FILE);
+    this.addServersDefinitionFile(
+      vscode.Uri.joinPath(
+        vscode.Uri.parse('file:///' + globalFolder),
+        Utils.SERVER_DEFINITION_FILE
+      )
     );
+
+    // vscode.workspace.onDidChangeConfiguration(() => {
+    //   this.doLoad();
+    // });
   }
 
-  get servers(): IServerItem[] {
-    return this._config.configurations;
-  }
-
-  get currentServer(): IServerItem {
-    return this._currentServer;
-  }
-
-  set currentServer(value: IServerItem) {
-    if (this._currentServer !== value) {
-      const oldValue: IServerItem = this._currentServer;
-
-      this._currentServer = value;
-
+  fireEvent(name: EventName, property: EventProperty, value: any) {
+    if (this._enableEvents) {
       this._onDidChange.fire({
-        name: 'connected',
-        data: { old: oldValue, new: value },
+        name: name,
+        property: property,
+        value: value,
       });
     }
-  }
-
-  private isSafeRPO(server: ILSServer): boolean {
-    if (server && server.buildVersion) {
-      return server.buildVersion.localeCompare('7.00.191205P') > 0;
-    }
-
-    return false;
-  }
-
-  private getRpoTokenInfos(): IRpoToken {
-    return this._config ? this._config.rpoToken : undefined;
-  }
-
-  saveRpoTokenInfos(infos: IRpoToken) {
-    this._config.rpoToken = infos;
-
-    this._onDidChange.fire({
-      name: 'change',
-      data: { name: 'rpoToken', infos },
-    });
-  }
-
-  getPermissionsInfos(): CompileKey {
-    return this._config.permissions.authorizationtoken;
-  }
-
-  savePermissionsInfos(infos: CompileKey) {
-    this._config.permissions.authorizationtoken = infos;
-
-    this._onDidChange.fire({
-      name: 'change',
-      data: { name: 'permissions', infos },
-    });
-  }
-
-  getAuthorizationToken(server: ServerItem): string {
-    const isSafeRPOServer: boolean = this.isSafeRPO(server);
-    const permissionsInfos: IRpoToken | CompileKey = isSafeRPOServer
-      ? this.getRpoTokenInfos()
-      : this.getPermissionsInfos();
-    let authorizationToken: string = '';
-
-    if (permissionsInfos) {
-      if (isSafeRPOServer) {
-        authorizationToken = (<IRpoToken>permissionsInfos).token;
-      } else {
-        authorizationToken = (<CompileKey>permissionsInfos).authorizationToken;
-      }
-    }
-
-    return authorizationToken;
   }
 
   deletePermissionsInfos() {
     this.savePermissionsInfos(undefined);
   }
 
+  getPermissionsInfos(): ICompileKey {
+    const config: IServerConfiguration = this.getConfigurations(this.userFile);
+    return config.getPermissionsInfos();
+  }
+
+  savePermissionsInfos(infos: ICompileKey) {
+    const config: IServerConfiguration = this.getConfigurations(this.userFile);
+    config.savePermissionsInfos(infos);
+  }
+
+  saveRpoTokenInfos(infos: IRpoToken) {
+    const config: IServerConfiguration = this.getConfigurations(this.userFile);
+    config.saveRpoTokenInfos(infos);
+  }
+
+  isIgnoreResource(file: string): boolean {
+    return processIgnoreList(ignoreListExpressions, path.basename(file));
+  }
+
+  isConnected(server: IServerDebugger) {
+    return (
+      this.currentServer !== undefined && this.currentServer.id === server.id
+    );
+  }
+
+  get folders(): string[] {
+    const result: string[] = [];
+
+    for (let key of this._configMap.keys()) {
+      result.push(key);
+    }
+
+    return result;
+  }
+
+  getConfigurations(folder: string): IServerConfiguration {
+    return this._configMap.get(folder);
+  }
+
+  get currentServer(): IServerDebugger {
+    return this._currentServer;
+  }
+
+  set currentServer(value: IServerDebugger) {
+    if (this._currentServer !== value) {
+      const oldValue: IServerDebugger = this._currentServer;
+
+      this._currentServer = value;
+
+      //this.doSave();
+      this.fireEvent('change', 'currentServer', { old: oldValue, new: value });
+    }
+  }
+
+  isSafeRPO(server: IServerDebugger): boolean {
+    if (server && server.build) {
+      return server.build.localeCompare('7.00.191205P') > 0;
+    }
+
+    return false;
+  }
+
+  readCompileKeyFile(path: string): IAuthorization {
+    if (fs.existsSync(path)) {
+      const parseIni = ini.parse(fs.readFileSync(path, 'utf-8').toLowerCase()); // XXX toLowerCase??
+      return parseIni.authorization;
+    }
+
+    return undefined;
+  }
+
+  addServersDefinitionFile(file: vscode.Uri): void {
+    this.doLoad(file);
+    serverJsonFileWatcher.addFile(file.fsPath, (fileUri: vscode.Uri) => {
+      this.doLoad(fileUri);
+    });
+  }
+
   /**
    * Retorna todo o conteudo do servers.json
    */
-  loadFromFile(file: string): any {
+  private doLoad(file: vscode.Uri): void {
+    const folder: string = path.dirname(file.fsPath);
+
+    const config: any = this.loadFromFile(file);
+    const serverConfig: IServerConfiguration = new ServerConfiguration(
+      this,
+      file.fsPath,
+      config
+    );
+    this._configMap.set(folder, serverConfig);
+
+    this.fireEvent('load', 'servers', {
+      old: undefined,
+      new: this._configMap[folder],
+    });
+  }
+
+  private loadFromFile(file: vscode.Uri): any {
     let config: any = {};
 
-    if (!fs.existsSync(file)) {
-      this.initializeServerConfigFile(file);
+    if (!fs.existsSync(file.fsPath)) {
+      this.initializeServerConfigFile(file.fsPath);
     }
-    const content: string = fs.readFileSync(file).toString();
-    config = TDSConfiguration.defaultConfiguration;
 
+    const content: string = fs.readFileSync(file.fsPath).toString();
     if (content) {
       try {
         config = JSON.parse(stripJsonComments(content));
       } catch (e) {
         console.exception(e);
+        vscode.window.showErrorMessage(e.message);
       }
     }
 
@@ -225,12 +325,17 @@ class ServerManager implements IServerManager {
 
     //compatibilização com arquivos gravados com versão da extensão
     //anterior a 07/05/21
-    if (!config.connections) {
-      config.connections.forEach((element: any, index: number) => {
-        if (typeof element === 'string') {
-          console.log(element);
-        }
+    if (config.hasOwnProperty('configurations')) {
+      config.configurations.forEach((element: any, index: number) => {
+        const server: IServerDebugger = this.getServerDebugger(
+          file.fsPath,
+          element,
+          true
+        );
+        config.configurations[index] = server;
       });
+    } else {
+      config = undefined;
     }
 
     return config;
@@ -240,40 +345,41 @@ class ServerManager implements IServerManager {
    * Grava no arquivo servers.json uma nova configuracao de servers
    * @param JSONServerInfo
    */
-  saveToFile(file: string, content: TDSConfiguration.ITDSConfiguration) {
-    fs.writeFileSync(
-      TDSConfiguration.getServerConfigFile(),
-      JSON.stringify(content, null, '\t')
-    );
+  saveToFile(file: string, content: IServerConfiguration) {
+    fs.writeFileSync(file, JSON.stringify(content, null, '\t'));
   }
 
   /**
-   * Cria uma nova configuracao de servidor no servers.json
+   * Cria uma nova configuracao de servidor debugger
    */
-  createNewServer(
+  private createServerDebugger(
+    folder: string,
     id: string,
-    typeServer: ServerType,
+    type: LSServerType.LS_SERVER_TYPE,
     serverName: string,
     port: number,
     address: string,
     buildVersion: string,
     secure: boolean,
     includes: string[]
-  ): IServerItem | undefined {
-    const servers = this._config.configurations;
+  ): IServerDebugger {
+    if (this._configMap[folder]) {
+      const servers = this._configMap[folder].configurations;
 
-    if (
-      servers.find((element: ILSServer) => {
-        return element.serverName === serverName;
-      })
-    ) {
-      vscode.window.showErrorMessage(
-        localize(
-          'tds.webview.serversView.serverNameDuplicated',
-          'Server name already exists'
-        )
-      );
-      return undefined;
+      if (
+        servers.some((element: IServerDebugger) => {
+          return element.name === serverName;
+        })
+      ) {
+        vscode.window.showErrorMessage(
+          localize(
+            'tds.webview.serversView.serverNameDuplicated',
+            'Server name already exists'
+          )
+        );
+
+        throw new Error('Server name already exists');
+      }
     }
 
     let validate_includes: string[] = [];
@@ -284,21 +390,100 @@ class ServerManager implements IServerManager {
       }
     });
 
-    const newServer: IServerItem = new ServerItem(
+    const serverOptions: Partial<ILSServerAttributes> = {
+      type: type,
+      address: address,
+      port: port,
+      build: buildVersion as BuildVersion,
+      secure: secure,
+    };
+
+    const newServer: ServerDebugger = new ServerDebugger(
+      this._configMap[folder],
       id || this.generateUUID(),
       serverName,
-      {
-        serverType: typeServer,
-        address: address,
-        port: port,
-        build: buildVersion,
-        secure: secure,
-      }
+      serverOptions
     );
     newServer.includes = validate_includes;
-    this._onDidChange.fire({ name: 'add', data: this.servers });
 
-    return newServer;
+    return <any>newServer;
+  }
+
+  /**
+   * Cria uma nova configuracao de servidor debugger
+   */
+  private createServerMonitor(
+    id: string,
+    type: LSServerType.LS_SERVER_TYPE,
+    serverName: string,
+    port: number,
+    address: string,
+    buildVersion: string,
+    secure: boolean
+  ): IServerMonitor {
+    const serverOptions: Partial<ILSServerAttributes> = {
+      type: type,
+      address: address,
+      port: port,
+      build: buildVersion as BuildVersion,
+      secure: secure,
+    };
+
+    const newServer: ServerMonitor = new ServerMonitor(
+      id || this.generateUUID(),
+      serverName,
+      serverOptions
+    );
+
+    return <any>newServer;
+  }
+
+  getServerDebugger(
+    folder: string,
+    debuggerServer: Partial<IServerDebuggerAttributes>,
+    load: boolean = false
+  ): IServerDebugger {
+    const target: ILSServerAttributes = (debuggerServer as unknown) as ILSServerAttributes;
+    let server: IServerDebugger = undefined;
+
+    if (!load) {
+      // const servers = this._configMap[globalFolder].configurations;
+      // server = servers.some((element: IServerDebugger) => {
+      //   return target.id
+      //     ? element.id === target.id
+      //     : element.name === target.name;
+      // });
+    }
+
+    if (!server) {
+      server = this.createServerDebugger(
+        folder,
+        target.id,
+        target.type,
+        target.name,
+        target.port,
+        target.address,
+        target.build,
+        target.secure,
+        debuggerServer.includes
+      );
+    }
+
+    return server;
+  }
+
+  getServerMonitor(debuggerServer: Partial<IServerDebugger>): IServerMonitor {
+    const server: IServerMonitor = this.createServerMonitor(
+      debuggerServer.id + '_monitor',
+      debuggerServer.type,
+      debuggerServer.name + '_monitor',
+      debuggerServer.port,
+      debuggerServer.address,
+      debuggerServer.build,
+      debuggerServer.secure
+    );
+
+    return server;
   }
 
   /**
@@ -315,78 +500,38 @@ class ServerManager implements IServerManager {
 
   private initializeServerConfigFile(file: string) {
     try {
-      fs.writeFileSync(
-        file,
-        JSON.stringify(TDSConfiguration.defaultConfiguration, null, '\t')
-      );
+      fs.writeFileSync(file, JSON.stringify(defaultConfiguration, null, '\t'));
     } catch (err) {
       console.error(err);
     }
   }
 
-  /**
-   * Recupera a lista de includes do arquivod servers.json
-   */
-  getIncludes(
-    absolutePath: boolean = false,
-    server?: IServerItem
-  ): Array<string> {
-    let includes: Array<string>;
+  // set smartClientBin(smartClient: string) {
+  //   const oldValue: string = this._configMap[globalFolder].smartClientBin;
+  //   this._configMap[globalFolder].smartClientBin = smartClient;
 
-    if (
-      server !== undefined &&
-      server.includes !== undefined &&
-      server.includes.length > 0
-    ) {
-      includes = server.includes as Array<string>;
-    } else {
-      includes = this._config.includes as Array<string>;
-    }
+  //   this.fireEvent('change', 'smartClientBin', {
+  //     old: oldValue,
+  //     new: this._configMap[globalFolder].smartClientBin,
+  //   });
+  // }
 
-    if (includes.toString()) {
-      if (absolutePath) {
-        const ws: string = vscode.workspace.rootPath || '';
-        includes.forEach((value, index, elements) => {
-          if (value.startsWith('.')) {
-            value = path.resolve(ws, value);
-          } else {
-            value = path.resolve(value.replace('${workspaceFolder}', ws));
-          }
+  // get smartClientBin(): string {
+  //   return this._configMap[globalFolder].smartClientBin;
+  // }
 
-          try {
-            const fi: fs.Stats = fs.lstatSync(value);
-            if (!fi.isDirectory) {
-              const msg: string = localize(
-                'tds.webview.utils.reviewList',
-                'Review the folder list in order to search for settings (.ch). Not recognized as folder: {0}',
-                value
-              );
-              vscode.window.showWarningMessage(msg);
-            } else {
-              elements[index] = value;
-            }
-          } catch (error) {
-            const msg: string = localize(
-              'tds.webview.utils.reviewList2',
-              'Review the folder list in order to search for settings (.ch). Invalid folder: {0}',
-              value
-            );
-            console.log(error);
-            vscode.window.showWarningMessage(msg);
-            elements[index] = '';
-          }
-        });
+  reconnectLastServer() {
+    if (TDSConfiguration.isReconnectLastServer()) {
+      if (this._configMap[globalFolder].lastConnectedServer) {
+        // this.servers.some((element: IServerDebugger) => {
+        //   if (
+        //     element.id === this._configMap[globalFolder].lastConnectedServer
+        //   ) {
+        //     return element.reconnect();
+        //   }
+        // });
       }
-    } else {
-      vscode.window.showWarningMessage(
-        localize(
-          'tds.webview.utils.listFolders',
-          'List of folders to search for definitions not configured.'
-        )
-      );
     }
-
-    return includes;
   }
 }
 
@@ -441,3 +586,10 @@ function processIgnoreList(
 }
 
 export const serverManager: IServerManager = new ServerManager();
+function defaultConfiguration(
+  defaultConfiguration: any,
+  arg1: null,
+  arg2: string
+): string | NodeJS.ArrayBufferView {
+  throw new Error('Function not implemented.');
+}

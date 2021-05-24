@@ -31,24 +31,6 @@ Pode-se acessá-lo acionando o ícone semelhante a uma engrenagem.
 
 ![Edit file server](./gifs/serversEditFile.gif)
 
-## Local de gravação de servers.json
-
-Por padrão, o arquivo com os registros de servidores é armazenado no arquivo `servers.json`, na área do usuário conforme o sistema operacional.
-
-* **Windows** `%USERPROFILE%\\.totvsls\\settings.json`
-* **MacOS** `$HOME/.totvsls/settings.json`
-* **Linux** `$HOME/.totvsls/settings.json`
-
-Caso deseje ter o registro de servidores por área de trabalho, ative a opção em `File | Preferences | Settings | Extensions | TOTVS | Workspace server config`.
-
-![Workspace Server Config](./images/workspaceServerConfig.png)
-
-Ou use a troca rápida disponível na barra de _status_.
-
-![Workspace Server Config](./gifs/toggleSaveLocation.gif)
-
-> A troca rápida aplica-se somente a área de trabalho corrente e se sobrepoem a configuração padrão ou por usuário. Detalhes em [User and Workspace Settings](https://code.visualstudio.com/docs/getstarted/settings).
-
 ## Sistema de Privilégios
 
 O **TDS-VSCode**, suporta um sistema simples de privilégios, baseada em configuração efetuada no arquivo _appServer.ini_, podendo-se configurar  privilégios para determinadas operações e estações, através da adição de chaves na sessão `[TDS]`.

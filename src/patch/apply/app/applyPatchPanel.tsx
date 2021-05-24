@@ -34,7 +34,7 @@ import {
   Typography,
 } from "@material-ui/core";
 import { ApplyDetailPanel } from "./applyDetailPanel";
-import { PATCH_ERROR_CODE } from "../applyPatchData";
+import { PATCH_ERROR_CODE } from '@totvs/tds-languageclient';
 import ShowResourcesDialog from "./showResourcesDialog";
 import Alert from "@material-ui/lab/Alert";
 

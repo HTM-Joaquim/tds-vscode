@@ -6,6 +6,7 @@ import { languageClient } from '../extension';
 import { isLSInitialized } from '../TotvsLanguageClient';
 import Utils from '../utils';
 import { ResponseError } from 'vscode-languageclient';
+import { IAuthorization, ICompileKey, serverManager } from '../serverManager';
 
 let localize = nls.loadMessageBundle();
 const compile = require('template-literal');
@@ -53,25 +54,6 @@ const localizeHTML = {
   ),
 };
 
-export interface CompileKey {
-  path: string;
-  machineId: string;
-  issued: string;
-  expire: string;
-  buildType: string;
-  tokenKey: string;
-  authorizationToken: string;
-  userId: string;
-}
-
-export interface Authorization {
-  id: string;
-  generation: string;
-  validation: string;
-  permission: string;
-  key: string;
-}
-
 export function compileKeyPage(context: vscode.ExtensionContext) {
   if (!isLSInitialized) {
     languageClient.onReady().then(async () => {
@@ -109,9 +91,8 @@ function initializePage(context: vscode.ExtensionContext) {
 
   getId(currentPanel);
 
-  const compileKey = Utils.getPermissionsInfos();
+  const compileKey = serverManager.getPermissionsInfos();
   if (compileKey && compileKey.authorizationToken) {
-    // && !compileKey.userId) {
     const generated = compileKey.issued;
     const expiry = compileKey.expire;
     const canOverride: boolean = compileKey.buildType === '0';
@@ -139,7 +120,7 @@ function initializePage(context: vscode.ExtensionContext) {
           }
           break;
         case 'readFile':
-          const authorization: Authorization = Utils.readCompileKeyFile(
+          const authorization: IAuthorization = serverManager.readCompileKeyFile(
             message.path
           );
           if (authorization) {
@@ -176,7 +157,7 @@ function initializePage(context: vscode.ExtensionContext) {
           }
           break;
         case 'cleanKey':
-          Utils.deletePermissionsInfos();
+          serverManager.deletePermissionsInfos();
           break;
       }
     },
@@ -256,7 +237,7 @@ function validateKey(currentPanel, message, close: boolean) {
           if (response.authorizationToken !== '') {
             console.log('validateKey success');
             if (close) {
-              let permission: CompileKey = {
+              let permission: ICompileKey = {
                 path: message.path,
                 machineId: message.id,
                 issued: message.generated,
@@ -266,7 +247,7 @@ function validateKey(currentPanel, message, close: boolean) {
                 authorizationToken: response.authorizationToken,
                 userId: '',
               };
-              Utils.savePermissionsInfos(permission);
+              serverManager.savePermissionsInfos(permission);
             }
             outputMessageText =
               localizeHTML['tds.webview.compile.key.validated'];

@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as compile from 'template-literal';
 import * as nls from 'vscode-nls';
-import { CompileResult } from './CompileResult';
+import { ICompileResult } from '@totvs/tds-languageclient';
 
 let localize = nls.loadMessageBundle();
 
@@ -17,7 +17,7 @@ const localizeHTML = {
 	"tds.webview.compile.col05": localize("tds.webview.compile.col05", "Path")
 };
 
-export function showCompileResult(response: CompileResult, context: any) {
+export function showCompileResult(response: ICompileResult, context: any) {
 	let extensionPath = "";
 	if (!context.extensionPath || context.extensionPath === undefined) {
 		let ext = vscode.extensions.getExtension("TOTVS.tds-vscode");

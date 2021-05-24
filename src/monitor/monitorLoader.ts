@@ -1,36 +1,36 @@
-import * as vscode from "vscode";
-import * as path from "path";
+import * as vscode from 'vscode';
+import * as path from 'path';
+import { MonitorPanelAction, IMonitorPanelAction } from './actions';
+import { languageClient } from '../extension';
+import * as nls from 'vscode-nls';
 import {
-  sendReconnectRequest,
-  IReconnectInfo,
-  sendLockServer,
-  sendStopServer,
-  sendKillConnection,
-  sendAppKillConnection,
-  sendUserMessage,
-  sendIsLockServer,
-} from "../protocolMessages";
-import { MonitorPanelAction, IMonitorPanelAction } from "./actions";
-import Utils, { groupBy } from "../utils";
+  EventData,
+  IGetUsersData,
+  IServerMonitor,
+  serverManager,
+} from '../serverManager';
+import { ResponseError } from 'vscode-languageclient';
 import {
-  sendDisconnectRequest,
-  ConnTypeIds,
-  sendGetUsersRequest,
-} from "../protocolMessages";
-import { languageClient } from "../extension";
-import serverProvider, { ServerItem } from "../serverItemProvider";
-import * as nls from "vscode-nls";
+  LS_CONNECTION_TYPE,
+  IResponseStatus,
+  IAppKillUserResult,
+  IKillUserResult,
+  IStopServerResult,
+  ISetConnectionStatusResult,
+} from '@totvs/tds-languageclient';
 
 const localize = nls.loadMessageBundle();
 const DEFAULT_SPEED = 30;
-const WS_STATE_KEY = "MONITOR_TABLE";
+const WS_STATE_KEY = 'MONITOR_TABLE';
 
 let monitorLoader: MonitorLoader = undefined;
 
 export function openMonitorView(context: vscode.ExtensionContext) {
-  const server = Utils.getCurrentServer();
+  const server: IServerMonitor = serverManager.getServerMonitor(
+    serverManager.currentServer
+  );
 
-  if ((monitorLoader === undefined) || (monitorLoader === null)) {
+  if (monitorLoader === undefined || monitorLoader === null) {
     monitorLoader = new MonitorLoader(context);
   }
 
@@ -42,18 +42,18 @@ export class MonitorLoader {
   private readonly _extensionPath: string;
   private _disposables: vscode.Disposable[] = [];
   private _isDisposed: boolean = false;
-  private _monitorServer: any = null;
+  private _monitorServer: IServerMonitor;
   private _speed: number = DEFAULT_SPEED;
   private _enableUpdateUsers: boolean = true;
   private _lock: boolean = false;
   private _timeoutSched: any = undefined;
   private _context: vscode.ExtensionContext;
 
-  public get monitorServer(): any {
+  public get monitorServer(): IServerMonitor {
     return this._monitorServer;
   }
 
-  public set monitorServer(value: any) {
+  public set monitorServer(value: IServerMonitor) {
     if (this._monitorServer !== value) {
       this._monitorServer = value;
       this.updateUsers(true);
@@ -62,24 +62,26 @@ export class MonitorLoader {
   }
 
   constructor(context: vscode.ExtensionContext) {
-    const ext = vscode.extensions.getExtension("TOTVS.tds-vscode");
+    const ext = vscode.extensions.getExtension('TOTVS.tds-vscode');
     this._extensionPath = ext.extensionPath;
     this._context = context;
 
     this._disposables.push(
-      Utils.onDidSelectedServer((newServer: ServerItem) => {
-        monitorLoader.toggleServerToMonitor(newServer);
+      serverManager.onDidChange((event: EventData) => {
+        if (event.name === 'change' && event.property === 'currentServer') {
+          monitorLoader.toggleServerToMonitor(event.value.new);
+        }
       })
     );
 
     this._panel = vscode.window.createWebviewPanel(
-      "monitorLoader",
-      localize("MONITOR", "Monitor"),
+      'monitorLoader',
+      localize('MONITOR', 'Monitor'),
       vscode.ViewColumn.One,
       {
         enableScripts: true,
         localResourceRoots: [
-          vscode.Uri.file(path.join(this._extensionPath, "out", "webpack")),
+          vscode.Uri.file(path.join(this._extensionPath, 'out', 'webpack')),
         ],
       }
     );
@@ -109,11 +111,11 @@ export class MonitorLoader {
       if (this.monitorServer) {
         vscode.window.setStatusBarMessage(
           localize(
-            "MSG_DISCONECT_MONITOR",
-            "Disconnecting monitor from server [{0}]",
+            'MSG_DISCONECT_MONITOR',
+            'Disconnecting monitor from server [{0}]',
             this.monitorServer.name
           ),
-          sendDisconnectRequest(this.monitorServer)
+          this.monitorServer.disconnect()
         );
       }
 
@@ -146,65 +148,65 @@ export class MonitorLoader {
     });
   }
 
-  public toggleServerToMonitor(serverItem: ServerItem) {
+  public toggleServerToMonitor(monitorItem: IServerMonitor) {
     if (this.monitorServer) {
       vscode.window.setStatusBarMessage(
         localize(
-          "DISCONNECTING_SERVER",
-          "Disconnecting [{0}] from the server ",
+          'DISCONNECTING_SERVER',
+          'Disconnecting [{0}] from the server ',
           this.monitorServer.name
         ),
-        sendDisconnectRequest(this.monitorServer)
+        this.monitorServer.disconnect()
       );
     }
 
     this.monitorServer = null;
 
-    if (serverItem) {
-      const monitorItem: ServerItem = Utils.deepCopy(
-        Utils.getServerById(serverItem.id)
-      ) as ServerItem;
-
-      monitorItem.id += "_monitor";
-      monitorItem.name += "_monitor";
-
+    if (monitorItem) {
       vscode.window.setStatusBarMessage(
-        `Conectando monitor ao servidor [${serverItem.name}]`,
-        sendReconnectRequest(
-          monitorItem,
-          serverItem.token,
-          ConnTypeIds.CONNT_MONITOR
-        ).then((result: IReconnectInfo) => {
-          if (result.sucess) {
-            monitorItem.token = result.token;
-            this.monitorServer = monitorItem;
-          } else {
-            vscode.window.showErrorMessage(
-              localize(
-                "NOT_POSSIBLE_CONNECTION",
-                "It was not possible to make the monitoring connection at [{0}].",
-                this.monitorServer.name
-              )
-            );
-          }
-        })
+        `Conectando monitor ao servidor [${monitorItem.name}]`,
+        monitorItem
+          .reconnect({
+            //connectionToken: monitorItem.connectionToken,
+            connType: LS_CONNECTION_TYPE.Monitor,
+          })
+          .then(
+            (result: boolean) => {
+              //monitorItem.token = result.connectionToken;
+              if (result) {
+                this.monitorServer = monitorItem;
+              } else {
+                Promise.reject(this.monitorServer.lastError);
+              }
+            },
+            (error: ResponseError<IResponseStatus>) => {
+              vscode.window.showErrorMessage(
+                localize(
+                  'NOT_POSSIBLE_CONNECTION',
+                  'It was not possible to make the monitoring connection at [{0}].\nReason: {1}',
+                  monitorItem.name,
+                  error.message
+                )
+              );
+            }
+          )
       );
     }
   }
 
-  private setLockServer(server: ServerItem, lock: boolean) {
-    sendLockServer(server, lock).then(
-      (result: boolean) => {
+  private setLockServer(server: IServerMonitor, lock: boolean) {
+    server.setLockServer(lock).then(
+      (result: ISetConnectionStatusResult) => {
         if (result) {
-          this.isLockServer(server);
+          //@acandido
+          //this.isLockServer(server);
         } else {
           vscode.window.showErrorMessage(
             localize(
-              "NOT_BLOCK_NEW_CONNECTIONS",
-              "Could not block new connections."
+              'NOT_BLOCK_NEW_CONNECTIONS',
+              'Could not block new connections.'
             )
           );
-          console.log(result);
         }
       },
       (error) => {
@@ -213,15 +215,15 @@ export class MonitorLoader {
     );
   }
 
-  private isLockServer(server: ServerItem) {
-    sendIsLockServer(server).then(
+  private isLockServer(server: IServerMonitor) {
+    server.isLockServer().then(
       (response: boolean) => {
         this.lock = response;
         if (response) {
           vscode.window.showInformationMessage(
             localize(
-              "NEW_CONNECTIONS_BLOCKED",
-              "Server with new connections blocked."
+              'NEW_CONNECTIONS_BLOCKED',
+              'Server with new connections blocked.'
             )
           );
         }
@@ -232,19 +234,19 @@ export class MonitorLoader {
     );
   }
 
-  private stopServer(server: ServerItem) {
-    sendStopServer(server).then(
-      (response: string) => {
-        if (response !== "OK") {
+  private stopServer(server: IServerMonitor) {
+    server.stop().then(
+      (response: IStopServerResult) => {
+        if (response.message !== 'OK') {
           vscode.window.showErrorMessage(
             localize(
-              "SERVER_NOT_BE_SHUTDOWN",
-              "The server could not be shut down. Return: {0}",
-              response
+              'SERVER_NOT_BE_SHUTDOWN',
+              'The server could not be shut down. Return: {0}',
+              response.message
             )
           );
         } else {
-          serverProvider.connectedServerItem = undefined;
+          serverManager.currentServer = undefined;
         }
       },
       (error: Error) => {
@@ -254,14 +256,14 @@ export class MonitorLoader {
   }
 
   private killConnection(
-    server: ServerItem,
+    server: IServerMonitor,
     recipients: any[],
     killNow: boolean
   ): void {
     vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: localize("CLOSING_CONNECTIONS", "Closing connections."),
+        title: localize('CLOSING_CONNECTIONS', 'Closing connections.'),
         cancellable: true,
       },
       (progress, token) => {
@@ -270,15 +272,15 @@ export class MonitorLoader {
         let inc: number = recipients.length / 100;
 
         token.onCancellationRequested(() => {
-          console.log("User canceled the operation");
+          console.log('User canceled the operation');
         });
 
         recipients.forEach((recipient) => {
           cnt++;
           progress.report({
             message: localize(
-              "SHUTTING_DOWN",
-              "Shutting down #{0}/{1}",
+              'SHUTTING_DOWN',
+              'Shutting down #{0}/{1}',
               cnt,
               total
             ),
@@ -286,8 +288,8 @@ export class MonitorLoader {
           });
 
           if (killNow) {
-            sendKillConnection(server, recipient).then(
-              (response: string) => {
+            server.killConnection(recipient).then(
+              (response: IKillUserResult) => {
                 //
               },
               (error: Error) => {
@@ -295,8 +297,8 @@ export class MonitorLoader {
               }
             );
           } else {
-            sendAppKillConnection(server, recipient).then(
-              (response: string) => {
+            server.appKillConnection(recipient).then(
+              (response: IAppKillUserResult) => {
                 //
               },
               (error: Error) => {
@@ -318,14 +320,14 @@ export class MonitorLoader {
   }
 
   private sendMessage(
-    server: ServerItem,
+    server: IServerMonitor,
     recipients: any[],
     message: string
   ): void {
     vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: localize("SENDING_MESSAGE", "Sending message to users."),
+        title: localize('SENDING_MESSAGE', 'Sending message to users.'),
         cancellable: true,
       },
       (progress, token) => {
@@ -334,17 +336,17 @@ export class MonitorLoader {
         let inc: number = recipients.length / 100;
 
         token.onCancellationRequested(() => {
-          console.log("User canceled the operation");
+          console.log('User canceled the operation');
         });
 
         recipients.forEach((recipient) => {
           cnt++;
           progress.report({
-            message: localize("SENDING", "Sending #{0}/{1}", cnt, total),
+            message: localize('SENDING', 'Sending #{0}/{1}', cnt, total),
             increment: inc,
           });
 
-          sendUserMessage(server, recipient, message).then(
+          server.sendUserMessage(recipient, message).then(
             (response: any) => {
               //vscode.window.showWarningMessage(response);
             },
@@ -377,13 +379,13 @@ export class MonitorLoader {
           //1 dialog open, 2 selected row
           this.updateSpeedStatus(
             localize(
-              "WAIT_CONFIG_UPDATE",
-              "Waiting for preview configuration changes"
+              'WAIT_CONFIG_UPDATE',
+              'Waiting for preview configuration changes'
             )
           );
         } else if (reason === 2) {
           this.updateSpeedStatus(
-            localize("SELECTED_CONNECTIONS", "Selected connections")
+            localize('SELECTED_CONNECTIONS', 'Selected connections')
           );
         } else {
           this.updateSpeedStatus();
@@ -447,9 +449,9 @@ export class MonitorLoader {
         break;
       }
       default:
-        console.log("***** ATTENTION: monitorLoader.tsx");
-        console.log("\tUnrecognized command: " + command.action);
-        console.log("\t" + command.content);
+        console.log('***** ATTENTION: monitorLoader.tsx');
+        console.log('\tUnrecognized command: ' + command.action);
+        console.log('\t' + command.content);
         break;
     }
   }
@@ -479,40 +481,38 @@ export class MonitorLoader {
         this._panel.webview.postMessage({
           command: MonitorPanelAction.UpdateUsers,
           data: {
-            serverName: localize("AWAITING_SELECTION", "(awaiting selection)"),
+            serverName: localize('AWAITING_SELECTION', '(awaiting selection)'),
             users: [],
           },
         });
       } else {
-        vscode.window.setStatusBarMessage("$(clock)" +
-          localize(
-            "REQUESTING_DATA_FROM_SERVER",
-            "Requesting data from the server [{0}]",
-            this.monitorServer.name
-          ),
-          sendGetUsersRequest(this.monitorServer).then(
-            (users: any) => {
-              if (users) {
-                const servers = groupBy(users, (item: any) => {
-                  return item.server;
-                }).map((element) => element[0].server);
-                const complement = users.length
+        vscode.window.setStatusBarMessage(
+          '$(clock)' +
+            localize(
+              'REQUESTING_DATA_FROM_SERVER',
+              'Requesting data from the server [{0}]',
+              this.monitorServer.name
+            ),
+          this.monitorServer.getUsersData().then(
+            (data: IGetUsersData) => {
+              if (data.users) {
+                const complement = data.users.length
                   ? localize(
-                      "THREADS",
-                      " ({0} thread(s) in {1} server(s))",
-                      users.length,
-                      servers.length
+                      'THREADS',
+                      ' ({0} thread(s) in {1} server(s))',
+                      data.users.length,
+                      data.servers.length
                     )
-                  : localize("THREADS_NONE", " (none thread)");
+                  : localize('THREADS_NONE', ' (none thread)');
 
                 this._panel.webview.postMessage({
                   command: MonitorPanelAction.UpdateUsers,
                   data: {
                     serverName:
-                      this.monitorServer.name.replace("_monitor", "") +
+                      this.monitorServer.name.replace('_monitor', '') +
                       complement,
-                    users: users,
-                    servers: servers,
+                    users: data.users,
+                    servers: data.servers,
                   },
                 });
               }
@@ -522,20 +522,20 @@ export class MonitorLoader {
             (err: Error) => {
               languageClient.error(err.message, err);
               vscode.window.showErrorMessage(
-                err.message + localize("SEE_LOG", ". See log for details.")
+                err.message + localize('SEE_LOG', '. See log for details.')
               );
 
               if (this.speed > 0) {
                 languageClient.info(
                   localize(
-                    "AUTOMATIC_UPDATE_STOPPED",
-                    "Automatic update stopped."
+                    'AUTOMATIC_UPDATE_STOPPED',
+                    'Automatic update stopped.'
                   )
                 );
                 languageClient.info(
                   localize(
-                    "PLEASE_CLICK_REACTIVATE",
-                    "Please click on [Update] to reactivate."
+                    'PLEASE_CLICK_REACTIVATE',
+                    'Please click on [Update] to reactivate.'
                   )
                 );
               }
@@ -549,29 +549,29 @@ export class MonitorLoader {
   private updateSpeedStatus(pauseReason?: string) {
     let nextUpdate = new Date(Date.now());
     let icon: string = '$(clock)';
-    let msg1: string = "";
-    let msg2: string = "";
+    let msg1: string = '';
+    let msg2: string = '';
 
     if (pauseReason) {
-      icon = "$(debug-pause)";
-      msg1 = localize("UPDATE_PAUSED", "Update paused. {0}", pauseReason);
+      icon = '$(debug-pause)';
+      msg1 = localize('UPDATE_PAUSED', 'Update paused. {0}', pauseReason);
     } else {
       msg1 = localize(
-        "MSG_1",
-        "Monitor: Updated as {0}.",
+        'MSG_1',
+        'Monitor: Updated as {0}.',
         `${nextUpdate.getHours()}:${nextUpdate.getMinutes()}:${nextUpdate.getSeconds()}`
       );
 
       if (this.speed === 0) {
         msg2 = localize(
-          "MSG_2_REQUEST",
-          "The next one will take place on request."
+          'MSG_2_REQUEST',
+          'The next one will take place on request.'
         );
       } else {
         nextUpdate.setSeconds(nextUpdate.getSeconds() + this.speed);
         msg2 = localize(
-          "MSG_2_NEXT",
-          "The next one will occur {0}",
+          'MSG_2_NEXT',
+          'The next one will occur {0}',
           `${nextUpdate.getHours()}:${nextUpdate.getMinutes()}:${nextUpdate.getSeconds()}`
         );
       }
@@ -583,10 +583,10 @@ export class MonitorLoader {
   private getWebviewContent(): string {
     // Local path to main script run in the webview
     const reactAppPathOnDisk = vscode.Uri.file(
-      path.join(this._extensionPath, "out", "webpack", "monitorPanel.js")
+      path.join(this._extensionPath, 'out', 'webpack', 'monitorPanel.js')
     );
 
-    const servers: ServerItem[] = this.monitorServer
+    const servers: IServerMonitor[] = this.monitorServer
       ? [this.monitorServer]
       : [];
 
@@ -597,15 +597,15 @@ export class MonitorLoader {
       translations: getTranslations(),
     };
 
-    if (configJson["memento"].hasOwnProperty("customProps")) {
-      const customProps = configJson["memento"]["customProps"];
-      if (!customProps.hasOwnProperty("speed")) {
-        customProps["speed"] = this.speed;
+    if (configJson['memento'].hasOwnProperty('customProps')) {
+      const customProps = configJson['memento']['customProps'];
+      if (!customProps.hasOwnProperty('speed')) {
+        customProps['speed'] = this.speed;
       }
     } else {
-      configJson["memento"] = { customProps: { speed: this.speed } };
+      configJson['memento'] = { customProps: { speed: this.speed } };
     }
-    this.speed = configJson["memento"]["customProps"]["speed"];
+    this.speed = configJson['memento']['customProps']['speed'];
 
     return `<!DOCTYPE html>
     <html lang="en">
@@ -639,133 +639,133 @@ function updateScheduledUsers(monitor: MonitorLoader, scheduler: boolean) {
 
 function getTranslations() {
   return {
-    ACTIONS: localize("ACTIONS", "Actions"),
-    ENVIRONMENT: localize("ENVIRONMENT", "Environment"),
-    CANCEL: localize("CANCEL", "Cancel"),
-    COMMENT: localize("COMMENT", "Comment"),
-    COMPUTER_NAME: localize("COMPUTER_NAME", "Computer Name"),
-    CONNECTION: localize("CONNECTION", "Connection"),
-    CONNECTIONS: localize("CONNECTIONS", "connections"),
+    ACTIONS: localize('ACTIONS', 'Actions'),
+    ENVIRONMENT: localize('ENVIRONMENT', 'Environment'),
+    CANCEL: localize('CANCEL', 'Cancel'),
+    COMMENT: localize('COMMENT', 'Comment'),
+    COMPUTER_NAME: localize('COMPUTER_NAME', 'Computer Name'),
+    CONNECTION: localize('CONNECTION', 'Connection'),
+    CONNECTIONS: localize('CONNECTIONS', 'connections'),
     CONNECTIONS_SELECTED: localize(
-      "CONNECTIONS_SELECTED",
-      "{0} connections selected"
+      'CONNECTIONS_SELECTED',
+      '{0} connections selected'
     ),
-    "CONNECTION_TYPE ": localize("CONNECTION_TYPE ", "Connection Type"),
-    CTREE_ID: localize("CTREE_ID", "CTree ID"),
+    'CONNECTION_TYPE ': localize('CONNECTION_TYPE ', 'Connection Type'),
+    CTREE_ID: localize('CTREE_ID', 'CTree ID'),
     DISCONNECT_ALL_USERS: localize(
-      "DISCONNECT_ALL_USERS",
-      "Disconnect all users"
+      'DISCONNECT_ALL_USERS',
+      'Disconnect all users'
     ),
     DISCONNECT_SELECTD_USERS: localize(
-      "DISCONNECT_SELECTD_USERS",
-      "Disconnect selectd users"
+      'DISCONNECT_SELECTD_USERS',
+      'Disconnect selectd users'
     ),
-    DRAG_HEADERS: localize("DRAG_HEADERS", "Drag headers ..."),
-    ELAPSED_TIME: localize("ELAPSED_TIME", "Elapsed time"),
-    FILTER: localize("FILTER", "Filter"),
-    FILTERING_ON_OFF: localize("FILTERING_ON_OFF", "Filtering on/off"),
-    FIRST: localize("FIRST", "First"),
-    FIRST_PAGE: localize("FIRST_PAGE", "First page"),
-    FROM_TO_OF_COUNT: localize("FROM_TO_OF_COUNT", "from-to de count"),
-    GROUPED_BY: localize("GROUPED_BY", "Grouped by:"),
-    GROUPING_ON_OFF: localize("GROUPING_ON_OFF", "Grouping on/off"),
-    TREE_ON_OFF: localize("TREE_ON_OFF", "Tree server on/off"),
-    INACTIVITY_TIME: localize("INACTIVITY_TIME", "Idle time"),
+    DRAG_HEADERS: localize('DRAG_HEADERS', 'Drag headers ...'),
+    ELAPSED_TIME: localize('ELAPSED_TIME', 'Elapsed time'),
+    FILTER: localize('FILTER', 'Filter'),
+    FILTERING_ON_OFF: localize('FILTERING_ON_OFF', 'Filtering on/off'),
+    FIRST: localize('FIRST', 'First'),
+    FIRST_PAGE: localize('FIRST_PAGE', 'First page'),
+    FROM_TO_OF_COUNT: localize('FROM_TO_OF_COUNT', 'from-to de count'),
+    GROUPED_BY: localize('GROUPED_BY', 'Grouped by:'),
+    GROUPING_ON_OFF: localize('GROUPING_ON_OFF', 'Grouping on/off'),
+    TREE_ON_OFF: localize('TREE_ON_OFF', 'Tree server on/off'),
+    INACTIVITY_TIME: localize('INACTIVITY_TIME', 'Idle time'),
     INFO_RELEASE_CONNECTION: localize(
-      "INFO_RELEASE_CONNECTION",
-      "When confirming the release of new connections, users can connect to that server again."
+      'INFO_RELEASE_CONNECTION',
+      'When confirming the release of new connections, users can connect to that server again.'
     ),
-    "INSTRUCTIONS_SEG ": localize("INSTRUCTIONS_SEG ", "Instructions/sec"),
-    LAST: localize("LAST", "Last"),
-    LAST_PAGE: localize("LAST_PAGE", "Last page"),
-    "LINES_PAGE.": localize("LINES_PAGE.", "lines/p."),
-    LOCK_SERVER: localize("LOCK_SERVER", "Lock server"),
-    LONG: localize("LONG", "(long)"),
-    MANUAL: localize("MANUAL", "(manual)"),
-    MEMORY_USE: localize("MEMORY_USE", "Memory in Use"),
-    MESSAGE_TEXT: localize("MESSAGE_TEXT", "Message Text"),
-    NEXT: localize("NEXT", "Next"),
-    NEXT_PAGE: localize("NEXT_PAGE", "Next page"),
-    NORMAL: localize("NORMAL", "(normal)"),
+    'INSTRUCTIONS_SEG ': localize('INSTRUCTIONS_SEG ', 'Instructions/sec'),
+    LAST: localize('LAST', 'Last'),
+    LAST_PAGE: localize('LAST_PAGE', 'Last page'),
+    'LINES_PAGE.': localize('LINES_PAGE.', 'lines/p.'),
+    LOCK_SERVER: localize('LOCK_SERVER', 'Lock server'),
+    LONG: localize('LONG', '(long)'),
+    MANUAL: localize('MANUAL', '(manual)'),
+    MEMORY_USE: localize('MEMORY_USE', 'Memory in Use'),
+    MESSAGE_TEXT: localize('MESSAGE_TEXT', 'Message Text'),
+    NEXT: localize('NEXT', 'Next'),
+    NEXT_PAGE: localize('NEXT_PAGE', 'Next page'),
+    NORMAL: localize('NORMAL', '(normal)'),
     NO_CONNECTIONS: localize(
-      "NO_CONNECTIONS",
-      "There are no connections or they are not visible to the monitor."
+      'NO_CONNECTIONS',
+      'There are no connections or they are not visible to the monitor.'
     ),
-    OK: localize("OK", "OK"),
-    PREVIOUS: localize("PREVIOUS", "Previous"),
-    PREVIOUS_PAGE: localize("PREVIOUS_PAGE", "Previous page"),
-    PROGRAM: localize("PROGRAM", "Program"),
-    REFRESH_DATA: localize("REFRESH_DATA", "Refresh data"),
-    REMARKS: localize("REMARKS", "Remarks"),
+    OK: localize('OK', 'OK'),
+    PREVIOUS: localize('PREVIOUS', 'Previous'),
+    PREVIOUS_PAGE: localize('PREVIOUS_PAGE', 'Previous page'),
+    PROGRAM: localize('PROGRAM', 'Program'),
+    REFRESH_DATA: localize('REFRESH_DATA', 'Refresh data'),
+    REMARKS: localize('REMARKS', 'Remarks'),
     RESET_CONFIGURATIONS: localize(
-      "RESET_CONFIGURATIONS",
-      "Reset configurations"
+      'RESET_CONFIGURATIONS',
+      'Reset configurations'
     ),
-    SEARCH: localize("SEARCH", "Search"),
-    SEARCH_ALL_COLUMNS: localize("SEARCH_ALL_COLUMNS", "Search in all columns"),
-    SEND: localize("SEND", "Submit"),
+    SEARCH: localize('SEARCH', 'Search'),
+    SEARCH_ALL_COLUMNS: localize('SEARCH_ALL_COLUMNS', 'Search in all columns'),
+    SEND: localize('SEND', 'Submit'),
     SEND_MESSAGE_ALL_USERS: localize(
-      "SEND_MESSAGE_ALL_USERS",
-      "Send message to all users"
+      'SEND_MESSAGE_ALL_USERS',
+      'Send message to all users'
     ),
     SEND_MESSAGE_SELECTED_USERS: localize(
-      "SEND_MESSAGE_SELECTED_USERS",
-      "Send message to selected users"
+      'SEND_MESSAGE_SELECTED_USERS',
+      'Send message to selected users'
     ),
-    SERVER: localize("SERVER", "Server"),
-    SHORT: localize("SHORT", "(short)"),
-    SHOW_HIDE_COLUMNS: localize("SHOW_HIDE_COLUMNS", "Show/hide columns"),
-    SID: localize("SID", "SID"),
-    STOP_SERVER: localize("STOP_SERVER", "Stop server"),
-    THREAD: localize("THREAD", "Thread ID"),
-    "TOTAL_INSTRUCTIONS ": localize("TOTAL_INSTRUCTIONS ", "Instructions"),
-    UNLOCK_SERVER: localize("UNLOCK_SERVER", "Unlock server"),
-    UPDATE_SPEED: localize("UPDATE_SPEED", "Update speed {0}"),
-    USER: localize("USER", "User"),
-    USER_NAME: localize("USER_NAME", "User Name"),
+    SERVER: localize('SERVER', 'Server'),
+    SHORT: localize('SHORT', '(short)'),
+    SHOW_HIDE_COLUMNS: localize('SHOW_HIDE_COLUMNS', 'Show/hide columns'),
+    SID: localize('SID', 'SID'),
+    STOP_SERVER: localize('STOP_SERVER', 'Stop server'),
+    THREAD: localize('THREAD', 'Thread ID'),
+    'TOTAL_INSTRUCTIONS ': localize('TOTAL_INSTRUCTIONS ', 'Instructions'),
+    UNLOCK_SERVER: localize('UNLOCK_SERVER', 'Unlock server'),
+    UPDATE_SPEED: localize('UPDATE_SPEED', 'Update speed {0}'),
+    USER: localize('USER', 'User'),
+    USER_NAME: localize('USER_NAME', 'User Name'),
     WARNING_BLOCKING_CONNECTIONS: localize(
-      "WARNING_BLOCKING_CONNECTIONS",
-      "When confirming the blocking of new connections, no user can connect to that server."
+      'WARNING_BLOCKING_CONNECTIONS',
+      'When confirming the blocking of new connections, no user can connect to that server.'
     ),
     WARN_ALL_CONNECTIONS_CLOSE_1: localize(
-      "WARN_ALL_CONNECTIONS_CLOSE_1",
-      "When confirming the server stop, all connections (including this) will be closed, as well as other processes."
+      'WARN_ALL_CONNECTIONS_CLOSE_1',
+      'When confirming the server stop, all connections (including this) will be closed, as well as other processes.'
     ),
     WARN_ALL_CONNECTIONS_CLOSE_2: localize(
-      "ERROR_ALL_CONNECTIONS_CLOSE_2",
-      "Restarting will only be possible by physically accessing the server."
+      'ERROR_ALL_CONNECTIONS_CLOSE_2',
+      'Restarting will only be possible by physically accessing the server.'
     ),
-    SECONDS: localize("SECONDS", "{0} seconds"),
+    SECONDS: localize('SECONDS', '{0} seconds'),
     WARN_CONNECTION_TERMINATED: localize(
-      "WARN_CONNECTION_TERMINATED",
-      "The users listed below will have their connections terminated."
+      'WARN_CONNECTION_TERMINATED',
+      'The users listed below will have their connections terminated.'
     ),
     TERMINATE_CONNECTIONS_IMMEDIATELY: localize(
-      "TERMINATE_CONNECTIONS_IMMEDIATELY",
-      "Terminate connections immediately."
+      'TERMINATE_CONNECTIONS_IMMEDIATELY',
+      'Terminate connections immediately.'
     ),
     DLG_TITLE_SEND_MESSAGE: localize(
-      "DLG_TITLE_SEND_MESSAGE",
-      "Message sending"
+      'DLG_TITLE_SEND_MESSAGE',
+      'Message sending'
     ),
     DLG_TITLE_CLOSE_CONNECTIONS: localize(
-      "DLG_TITLE_CLOSE_CONNECTIONS",
-      "Closes user connections"
+      'DLG_TITLE_CLOSE_CONNECTIONS',
+      'Closes user connections'
     ),
-    DLG_TITLE_SPEED: localize("DLG_TITLE_SPEED", "Interval between updates"),
+    DLG_TITLE_SPEED: localize('DLG_TITLE_SPEED', 'Interval between updates'),
     DLG_TITLE_STOP_SERVER: localize(
-      "DLG_TITLE_STOP_SERVER",
-      "Confirm the server stop?"
+      'DLG_TITLE_STOP_SERVER',
+      'Confirm the server stop?'
     ),
     DLG_TITLE_LOCK_SERVER: localize(
-      "DLG_TITLE_LOCK_SERVER",
-      "Block new connections?"
+      'DLG_TITLE_LOCK_SERVER',
+      'Block new connections?'
     ),
-    DLG_TITLE_REMARKS: localize("DLG_TITLE_REMARKS", "Remarks"),
-    DLG_TITLE_UNLOCK: localize("DLG_TITLE_UNLOCK", "Unlock new connections?"),
-    ENVIRONEMNT: localize("ENVIRONEMNT", "Environemnt"),
-    MONITOR: localize("MONITOR", "Monitor"),
-    INITIALIZING: localize("INITIALIZING", "(initializing)"),
-    SHOW_COLUMNS: localize("SHOW_COLUMNS", "Show Columns"),
+    DLG_TITLE_REMARKS: localize('DLG_TITLE_REMARKS', 'Remarks'),
+    DLG_TITLE_UNLOCK: localize('DLG_TITLE_UNLOCK', 'Unlock new connections?'),
+    ENVIRONEMNT: localize('ENVIRONEMNT', 'Environemnt'),
+    MONITOR: localize('MONITOR', 'Monitor'),
+    INITIALIZING: localize('INITIALIZING', '(initializing)'),
+    SHOW_COLUMNS: localize('SHOW_COLUMNS', 'Show Columns'),
   };
 }

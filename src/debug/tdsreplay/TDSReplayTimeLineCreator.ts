@@ -1,8 +1,19 @@
-import { debug, commands, Disposable, window, WebviewPanel, ExtensionContext, DebugSessionCustomEvent, ViewColumn, Uri } from 'vscode';
-import * as path from "path";
-import { ICommand, CommandToDA, CommandToPage } from "./Command";
-import Utils, { MESSAGETYPE } from "../../utils";
+import {
+  debug,
+  commands,
+  Disposable,
+  window,
+  WebviewPanel,
+  ExtensionContext,
+  DebugSessionCustomEvent,
+  ViewColumn,
+  Uri,
+} from 'vscode';
+import * as path from 'path';
+import { ICommand, CommandToDA, CommandToPage } from './Command';
+import Utils, { MESSAGETYPE } from '../../utils';
 import { DebugEvent } from '../debugEvents';
+import { TDSConfiguration } from '../../configurations';
 
 let timeLineWebView: CreateTDSReplayTimeLineWebView;
 
@@ -15,7 +26,11 @@ export class CreateTDSReplayTimeLineWebView {
   private _isDisposed = false;
   private _isIgnoreSourcesNotFound = true;
 
-  constructor(context: ExtensionContext, debugEvent: DebugSessionCustomEvent, isIgnoreSourcesNotFound: boolean) {
+  constructor(
+    context: ExtensionContext,
+    debugEvent: DebugSessionCustomEvent,
+    isIgnoreSourcesNotFound: boolean
+  ) {
     this._extensionPath = context.extensionPath;
     this._debugEvent = debugEvent;
     this._context = context;
@@ -23,22 +38,22 @@ export class CreateTDSReplayTimeLineWebView {
 
     this.initializePanel();
 
-    window.onDidChangeActiveTextEditor(editor => {
-      if(editor !== undefined) {
+    window.onDidChangeActiveTextEditor((editor) => {
+      if (editor !== undefined) {
         //console.log(editor);
         //if(editor.viewColumn !== 1) {
-          //editor.viewColumn = 1;
+        //editor.viewColumn = 1;
         //}
       }
     });
 
     //window.onDidChangeTextEditorViewColumn
 
-    debug.onDidTerminateDebugSession(event => {
+    debug.onDidTerminateDebugSession((event) => {
       this._panel.dispose();
     });
 
-    debug.onDidStartDebugSession(event => {
+    debug.onDidStartDebugSession((event) => {
       if (!this._panel.visible) {
         //this._panel.reveal();
         this.reveal();
@@ -46,21 +61,18 @@ export class CreateTDSReplayTimeLineWebView {
     });
 
     timeLineWebView = this;
-
   }
 
-private initializePanel(): void {
+  private initializePanel(): void {
     this._panel = window.createWebviewPanel(
-      "CreateTDSReplayTimeLineWebView",
-      "TDS Replay TimeLineView",
+      'CreateTDSReplayTimeLineWebView',
+      'TDS Replay TimeLineView',
       ViewColumn.Beside,
       {
         enableScripts: true,
         localResourceRoots: [
-          Uri.file(
-            path.join(this._extensionPath, "out", "webpack")
-          )
-        ]
+          Uri.file(path.join(this._extensionPath, 'out', 'webpack')),
+        ],
       }
     );
 
@@ -70,7 +82,13 @@ private initializePanel(): void {
       this._isDisposed = true;
     });
 
-    this._panel.webview.onDidReceiveMessage((command: ICommand) => { handleRequestFromPage(command); }, undefined, this._disposables);
+    this._panel.webview.onDidReceiveMessage(
+      (command: ICommand) => {
+        handleRequestFromPage(command);
+      },
+      undefined,
+      this._disposables
+    );
     this._isDisposed = false;
   }
 
@@ -78,19 +96,16 @@ private initializePanel(): void {
     // Local path to main script run in the webview
     //Essa instrução deve apontar para o arquivo compactado, gerado pelo webpack, definido no webpack.config.js
     const reactAppPathOnDisk = Uri.file(
-      path.join(
-        this._extensionPath,
-        "out",
-        "webpack",
-        "timeLineView.js"
-      )
+      path.join(this._extensionPath, 'out', 'webpack', 'timeLineView.js')
     );
 
-    const reactAppUri = reactAppPathOnDisk.with({ scheme: "vscode-resource" });
+    const reactAppUri = reactAppPathOnDisk.with({ scheme: 'vscode-resource' });
 
-    this._debugEvent.body["ignoreSourcesNotFound"] = this._isIgnoreSourcesNotFound;
+    this._debugEvent.body[
+      'ignoreSourcesNotFound'
+    ] = this._isIgnoreSourcesNotFound;
     const configJson = JSON.stringify(this._debugEvent);
-    const sources = "";
+    const sources = '';
 
     return `<!DOCTYPE html>
     <html lang="en">
@@ -118,9 +133,8 @@ private initializePanel(): void {
     </html>`;
   }
 
-
   public reveal() {
-    if(!this._isDisposed) {
+    if (!this._isDisposed) {
       this._panel.reveal();
     } else {
       this.initializePanel();
@@ -133,25 +147,28 @@ private initializePanel(): void {
     //Envio de mensagem para a página
     this._panel.webview.postMessage({
       command: CommandToPage.SelectTimeLine,
-      data: timeLineId
+      data: timeLineId,
     });
   }
 
   public showLoadingPageDialog(showLoadingPageDialog: boolean) {
     this._panel.webview.postMessage({
       command: CommandToPage.ShowLoadingPageDialog,
-      data: showLoadingPageDialog
+      data: showLoadingPageDialog,
     });
   }
 
-  public postAddTimeLineEvent(debugEvent: DebugSessionCustomEvent, isIgnoreSourceNotFound: boolean) {
+  public postAddTimeLineEvent(
+    debugEvent: DebugSessionCustomEvent,
+    isIgnoreSourceNotFound: boolean
+  ) {
     //Envio de mensagem para página
     this._isIgnoreSourcesNotFound = isIgnoreSourceNotFound;
     this._debugEvent = debugEvent;
-    debugEvent.body["ignoreSourcesNotFound"] = this._isIgnoreSourcesNotFound;
+    debugEvent.body['ignoreSourcesNotFound'] = this._isIgnoreSourcesNotFound;
     this._panel.webview.postMessage({
       command: CommandToPage.AddTimeLines,
-      data: debugEvent
+      data: debugEvent,
     });
   }
 
@@ -159,14 +176,13 @@ private initializePanel(): void {
     //this._debugEvent.body["sources"] = jsonResponse.sources;
     this._panel.webview.postMessage({
       command: CommandToPage.OpenSourcesDialog,
-      data: jsonResponse.sources
+      data: jsonResponse.sources,
     });
   }
 
   public isDisposed(): boolean {
     return this._isDisposed;
   }
-
 }
 
 function handleRequestFromPage(command: ICommand) {
@@ -185,7 +201,7 @@ function handleRequestFromPage(command: ICommand) {
       handleSetIgnoreSourcesNotFound(command);
       break;
     case CommandToDA.ShowSources:
-        handleShowSourcesCommand(command);
+      handleShowSourcesCommand(command);
       break;
   }
 }
@@ -195,80 +211,88 @@ function handleRequestFromPage(command: ICommand) {
 function handleSetTimeLineCommand(command: ICommand) {
   if (debug.activeDebugSession) {
     //Envia para o debug adapter uma solicitação para setar o timeline
-    let timeLine = { "id": parseInt(command.content.timeLineSelected) };
-    debug.activeDebugSession.customRequest("TDA/setTimeLine", timeLine);
+    let timeLine = { id: parseInt(command.content.timeLineSelected) };
+    debug.activeDebugSession.customRequest('TDA/setTimeLine', timeLine);
   }
 }
-
 
 function handleChangePageCommand(command: ICommand) {
   if (debug.activeDebugSession) {
     //Envia para o debug adapter uma solicitação para mudar de pagina.
     //O proprio debug adapter ira enviar uma mensagem para adicionar as timelines da nova pagina
-    let newPage = { "newPage": parseInt(command.content.newPage) };
+    let newPage = { newPage: parseInt(command.content.newPage) };
     //console.log("Enviando requisição para troca de pagina: " + newPage);
-    debug.activeDebugSession.customRequest("TDA/changeTimeLinePage", newPage);
+    debug.activeDebugSession.customRequest('TDA/changeTimeLinePage', newPage);
   }
 }
 
-
-
 function handleChangeItemsPerPageCommand(command: ICommand) {
-  if(debug.activeDebugSession) {
+  if (debug.activeDebugSession) {
     //Envia para o debug adapter uma solicitação para alterar a quantidade de items por pagina.
     //O proprio dap ja calcula a nova quantidade de paginas e enviar uma solicitação para adicionar
     //as novas timelines na pagina corrente, mantendo a seleção corrente ou selecionando a primeira
     //timeLine da pagina caso nao seja possivel manter a selecao.
     let requestJson = {
-      "itemsPerPage": parseInt(command.content.itemsPerPage),
-      "currentSelectedTimeLineId" : parseInt(command.content.currentSelectedTimeLineId)
+      itemsPerPage: parseInt(command.content.itemsPerPage),
+      currentSelectedTimeLineId: parseInt(
+        command.content.currentSelectedTimeLineId
+      ),
     };
     //console.log("Enviando requisição para trocar a quantidade de items por pagina");
-    debug.activeDebugSession.customRequest("TDA/changeItemsPerPage", requestJson);
+    debug.activeDebugSession.customRequest(
+      'TDA/changeItemsPerPage',
+      requestJson
+    );
   }
 }
 
 function handleSetIgnoreSourcesNotFound(command: ICommand) {
-  if(debug.activeDebugSession) {
-
+  if (debug.activeDebugSession) {
     let debugSession = debug.activeDebugSession;
     let launchConfig = undefined;
 
     try {
-			launchConfig = Utils.getLaunchConfig();
+      launchConfig = TDSConfiguration.loadLaunchConfig();
       for (let key = 0; key < launchConfig.configurations.length; key++) {
         let launchElement = launchConfig.configurations[key];
-        if(debugSession !== undefined && launchElement.name === debugSession.name) {
-          launchElement.ignoreSourcesNotFound = command.content.isIgnoreSourceNotFound;
+        if (
+          debugSession !== undefined &&
+          launchElement.name === debugSession.name
+        ) {
+          launchElement.ignoreSourcesNotFound =
+            command.content.isIgnoreSourceNotFound;
           break;
         }
       }
 
-      Utils.saveLaunchConfig(launchConfig);
+      TDSConfiguration.saveLaunchConfig(launchConfig);
 
       let requestJson = {
-        "isIgnoreSourceNotFound": command.content.isIgnoreSourceNotFound
+        isIgnoreSourceNotFound: command.content.isIgnoreSourceNotFound,
       };
-      debug.activeDebugSession.customRequest("TDA/setIgnoreSourcesNotFound", requestJson);
-
-		} catch(e) {
+      debug.activeDebugSession.customRequest(
+        'TDA/setIgnoreSourcesNotFound',
+        requestJson
+      );
+    } catch (e) {
       Utils.logInvalidLaunchJsonFile(e);
-		}
+    }
   }
 }
 
 function handleShowSourcesCommand(command: ICommand) {
   if (debug.activeDebugSession) {
     let requestJson = {
-      "sourceName": command.content.data
+      sourceName: command.content.data,
     };
     //console.log("Enviando requisição para trocar a quantidade de items por pagina");
-    debug.activeDebugSession.customRequest("TDA/getSourceInfo", requestJson)
-    .then((jsonResponse) => {
-      //console.log(jsonResponse);
-      if(timeLineWebView) {
-        timeLineWebView.openSourcesDialog(jsonResponse);
-      }
-    });
+    debug.activeDebugSession
+      .customRequest('TDA/getSourceInfo', requestJson)
+      .then((jsonResponse) => {
+        //console.log(jsonResponse);
+        if (timeLineWebView) {
+          timeLineWebView.openSourcesDialog(jsonResponse);
+        }
+      });
   }
 }

@@ -1,6 +1,18 @@
-/*---------------------------------------------------------
- * Copyright (C) TOTVS S.A. All rights reserved.
- *--------------------------------------------------------*/
+/*
+Copyright 2021 TOTVS S.A
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+  http: //www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 'use strict';
 import * as vscode from 'vscode';
 import * as nls from 'vscode-nls';
@@ -65,12 +77,13 @@ import { registerDebug, _debugEvent } from './debug';
 import { openMonitorView } from './monitor/monitorLoader';
 import { openRpoInfoView } from './rpoInfo/rpoInfoLoader';
 import { openApplyPatchView } from './patch/apply/applyPatchLoader';
-import { initStatusBarItems, updateStatusBarItems } from './statusBar';
+import { initStatusBarItems } from './statusBar';
 import { PatchEditorProvider } from './patch/inspect/patchEditor';
 import { openTemplateApplyView } from './template/apply/formApplyTemplate';
 import { rpoTokenInputBox, saveRpoTokenString } from './rpoToken';
-import { serverManager } from './serverManager';
 import { TDSConfiguration } from './configurations';
+import { serverManager } from './serverManager';
+import { FolderTreeItem, ServerTreeItem } from './serverItemProvider';
 
 export let languageClient: LanguageClient;
 export function parseUri(u): Uri {
@@ -89,7 +102,7 @@ export function activate(context: ExtensionContext) {
     )
   );
 
-  Utils.createLaunchConfig();
+  TDSConfiguration.createLaunchConfig();
 
   context.subscriptions.push(
     commands.registerCommand('tds.getDAP', () => getDAP())
@@ -462,8 +475,11 @@ export function activate(context: ExtensionContext) {
 
   //Adiciona página de Includes
   context.subscriptions.push(
-    commands.registerCommand('totvs-developer-studio.include', () =>
-      showInclude(context)
+    commands.registerCommand(
+      'totvs-developer-studio.include',
+      (element: FolderTreeItem | ServerTreeItem) => {
+        showInclude(context, element);
+      }
     )
   );
 
@@ -540,16 +556,6 @@ export function activate(context: ExtensionContext) {
     })
   );
 
-  //Troca rápida do local de salva do servers.json.
-  context.subscriptions.push(
-    commands.registerCommand(
-      'totvs-developer-studio.toggleSaveLocation',
-      () => {
-        TDSConfiguration.toggleWorkspaceServerConfig();
-      }
-    )
-  );
-
   //Compile key
   commands.registerCommand('totvs-developer-studio.compile.key', () =>
     compileKeyPage(context)
@@ -592,11 +598,11 @@ export function activate(context: ExtensionContext) {
     )
   );
 
-  context.subscriptions.push(
-    workspace.onDidChangeConfiguration(() => {
-      updateStatusBarItems();
-    })
-  );
+  // context.subscriptions.push(
+  //   workspace.onDidChangeConfiguration(() => {
+  //     updateStatusBarItems();
+  //   })
+  // );
 
   //Capturador de logs.
   registerLog(context);
@@ -620,6 +626,22 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(PatchEditorProvider.register(context));
 
   showBanner();
+
+  workspace.findFiles('**/.vscode/servers.json').then((uris: vscode.Uri[]) => {
+    serverManager.enableEvents = false;
+
+    uris.forEach((uri: vscode.Uri) => {
+      serverManager.addServersDefinitionFile(uri);
+    });
+
+    serverManager.enableEvents = true;
+  });
+
+  workspace.onDidChangeWorkspaceFolders(
+    (event: vscode.WorkspaceFoldersChangeEvent) => {
+      console.log(event);
+    }
+  );
 
   let exportedApi = {
     generatePPO(filePath: string, options?: any): Promise<string> {

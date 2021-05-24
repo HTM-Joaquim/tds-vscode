@@ -1,8 +1,8 @@
-import { FormControl, Grid, Input, InputLabel, Link, Paper, TextField, Typography } from "@material-ui/core";
 import * as React from "react";
+import { Grid, Link, Paper, TextField, Typography } from "@material-ui/core";
 import { ApplyPatchPanelAction } from "../actions";
-import { IPatchFileInfo, PATCH_ERROR_CODE } from "../applyPatchData";
 import { renderStatus } from "./applyPatchPanelMemento";
+import { IPatchFileInfo, PATCH_ERROR_CODE } from '@totvs/tds-languageclient';
 
 interface IApplyDetailPanel {
 	vscode: any;

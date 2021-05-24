@@ -1,11 +1,9 @@
-import * as path from "path";
-import * as vscode from "vscode";
-import { sendPatchInfo } from "../../protocolMessages";
-import Utils from "../../utils";
-import { ApplyViewAction } from "./actions";
-import { Disposable, disposeAll } from "./dispose";
-import * as fs from "fs"
-import { IPatchData } from "./patchData";
+import * as path from 'path';
+import * as vscode from 'vscode';
+import { ApplyViewAction } from './actions';
+import { Disposable } from './dispose';
+import { IPatchData } from './patchData';
+import { IServerDebugger, serverManager } from '../../serverManager';
 
 interface PatchDocumentDelegate {
   getFileData(): Promise<IPatchData>;
@@ -25,14 +23,11 @@ class PatchDocument extends Disposable implements vscode.CustomDocument {
   }
 
   private static async readFile(uri: vscode.Uri): Promise<IPatchData> {
-    const server = Utils.getCurrentServer();
+    const server: IServerDebugger = serverManager.currentServer;
     const data: IPatchData = {
       filename: path.basename(uri.fsPath),
       lengthFile: (await vscode.workspace.fs.stat(uri)).size,
-      patchInfo: await sendPatchInfo(
-        server,
-        uri.fsPath
-      ),
+      patchInfo: await server.getPatchInfo(uri.fsPath),
     };
 
     return data;
@@ -167,7 +162,6 @@ export class PatchEditorProvider
   private static newPatchFileId = 1;
 
   public static register(context: vscode.ExtensionContext): vscode.Disposable {
-
     return vscode.window.registerCustomEditorProvider(
       PatchEditorProvider.viewType,
       new PatchEditorProvider(context),
@@ -180,14 +174,14 @@ export class PatchEditorProvider
     );
   }
 
-  static readonly viewType = "tds.patchView";
+  static readonly viewType = 'tds.patchView';
 
   /**
    * Tracks all known webviews
    */
   private readonly webviews = new WebviewCollection();
 
-  constructor(private readonly _context: vscode.ExtensionContext) { }
+  constructor(private readonly _context: vscode.ExtensionContext) {}
 
   async openCustomDocument(
     uri: vscode.Uri,
@@ -198,17 +192,17 @@ export class PatchEditorProvider
       getFileData: async () => {
         const webviewsForDocument = Array.from(this.webviews.get(document.uri));
         if (!webviewsForDocument.length) {
-          throw new Error("Could not find webview to save for");
+          throw new Error('Could not find webview to save for');
         }
 
         const panel = webviewsForDocument[0];
         const response = await this.postMessageWithResponse<number[]>(
           panel,
-          "getFileData",
+          'getFileData',
           {}
         );
 
-        return { filename: "", lengthFile: 0, patchInfo: {} }
+        return { filename: '', lengthFile: 0, patchInfo: {} };
       },
     });
 
@@ -278,12 +272,12 @@ export class PatchEditorProvider
    * Get the static HTML used for in our editor's webviews.
    */
   private getHtmlForWebview(webview: vscode.Webview): string {
-    const ext = vscode.extensions.getExtension("TOTVS.tds-vscode");
+    const ext = vscode.extensions.getExtension('TOTVS.tds-vscode');
     const extensionPath = ext.extensionPath;
 
     // Local path to main script run in the webview
     const reactAppPathOnDisk = vscode.Uri.file(
-      path.join(extensionPath, "out", "webpack", "inspectPatchPanel.js")
+      path.join(extensionPath, 'out', 'webpack', 'inspectPatchPanel.js')
     );
 
     const reactAppUri = webview.asWebviewUri(reactAppPathOnDisk);

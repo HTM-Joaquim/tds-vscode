@@ -1,26 +1,24 @@
-import * as vscode from "vscode";
-import * as path from "path";
-import { sendRpoInfo } from "../protocolMessages";
-import { RpoInfoPanelAction, IRpoInfoPanelAction } from "./actions";
-import { ServerItem } from "../serverItemProvider";
-import * as nls from "vscode-nls";
-import Utils from "../utils";
-import { languageClient } from "../extension";
-import { IProgramApp, IRpoInfoData, IRpoPatch } from "./rpoPath";
-import { listeners } from "process";
+import * as vscode from 'vscode';
+import * as path from 'path';
+import { RpoInfoPanelAction, IRpoInfoPanelAction } from './actions';
+import * as nls from 'vscode-nls';
+import { EventData, IServerDebugger, serverManager } from '../serverManager';
+import {
+  IProgramApp,
+  IRpoInfoResult,
+  IRpoPatch,
+} from '@totvs/tds-languageclient';
 
 const localize = nls.loadMessageBundle();
 
 let rpoInfoLoader: RpoInfoLoader = undefined;
 
 export function openRpoInfoView(context: vscode.ExtensionContext) {
-  const server = Utils.getCurrentServer();
-
-  if ((rpoInfoLoader === null) || (rpoInfoLoader == undefined)) {
+  if (rpoInfoLoader === null || rpoInfoLoader == undefined) {
     rpoInfoLoader = new RpoInfoLoader(context);
   }
 
-  rpoInfoLoader.toggleServerToMonitor(server);
+  rpoInfoLoader.toggleServerToMonitor(serverManager.currentServer);
 }
 
 export class RpoInfoLoader {
@@ -43,24 +41,26 @@ export class RpoInfoLoader {
   }
 
   constructor(context: vscode.ExtensionContext) {
-    const ext = vscode.extensions.getExtension("TOTVS.tds-vscode");
+    const ext = vscode.extensions.getExtension('TOTVS.tds-vscode');
     this._extensionPath = ext.extensionPath;
     this._context = context;
 
     this._disposables.push(
-      Utils.onDidSelectedServer((newServer: ServerItem) => {
-        rpoInfoLoader.toggleServerToMonitor(newServer);
+      serverManager.onDidChange((event: EventData) => {
+        if (event.name === 'change' && event.property === 'currentServer') {
+          rpoInfoLoader.toggleServerToMonitor(event.value.new);
+        }
       })
     );
 
     this._panel = vscode.window.createWebviewPanel(
-      "rpoInfoLoader",
-      localize("RPO_LOG", "Log do repositório"),
+      'rpoInfoLoader',
+      localize('RPO_LOG', 'Log do repositório'),
       vscode.ViewColumn.One,
       {
         enableScripts: true,
         localResourceRoots: [
-          vscode.Uri.file(path.join(this._extensionPath, "out", "webpack")),
+          vscode.Uri.file(path.join(this._extensionPath, 'out', 'webpack')),
         ],
       }
     );
@@ -91,60 +91,68 @@ export class RpoInfoLoader {
     });
   }
 
-  public toggleServerToMonitor(serverItem: ServerItem) {
-    this.monitorServer = null;
-
-    if (serverItem) {
-      this.monitorServer = serverItem;
-    }
+  public toggleServerToMonitor(serverItem: IServerDebugger) {
+    this.monitorServer = serverItem;
   }
 
   private async handleMessage(command: IRpoInfoPanelAction) {
     switch (command.action) {
       case RpoInfoPanelAction.ExportToJson: {
         this.updateStatus(
-          localize("EXPORT_JSON", "Waiting for export JSON file")
+          localize('EXPORT_JSON', 'Waiting for export JSON file')
         );
 
         break;
       }
       case RpoInfoPanelAction.ExportToTxt: {
         vscode.window.setStatusBarMessage(
-          "$(clock)" +
-          "Export repository log. Wait...",
-          this.doExportToTxt(this.monitorServer, command.content.rpoInfo, command.content.rpoPath).
-            then((filename: string) => {
-              var setting: vscode.Uri = vscode.Uri.parse("file:" + filename);
-              vscode.workspace.openTextDocument(setting).then((a: vscode.TextDocument) => {
-                vscode.window.showTextDocument(a, 1, false);
-              }, (error: any) => {
-                vscode.window.showErrorMessage(error);
-              });
-            }, (reason: any) => {
+          '$(clock)' + 'Export repository log. Wait...',
+          this.doExportToTxt(
+            this.monitorServer,
+            command.content.rpoInfo,
+            command.content.rpoPath
+          ).then(
+            (filename: string) => {
+              var setting: vscode.Uri = vscode.Uri.parse('file:' + filename);
+              vscode.workspace.openTextDocument(setting).then(
+                (a: vscode.TextDocument) => {
+                  vscode.window.showTextDocument(a, 1, false);
+                },
+                (error: any) => {
+                  vscode.window.showErrorMessage(error);
+                }
+              );
+            },
+            (reason: any) => {
               vscode.window.showErrorMessage(reason);
-            })
+            }
+          )
         );
 
         break;
       }
       default:
-        console.log("***** ATTENTION: rpoInfoLoader.tsx");
-        console.log("\tUnrecognized command: " + command.action);
-        console.log("\t" + command.content);
+        console.log('***** ATTENTION: rpoInfoLoader.tsx');
+        console.log('\tUnrecognized command: ' + command.action);
+        console.log('\t' + command.content);
         break;
     }
   }
 
-  public doExportToTxt(server: any, rpoInfo: any, rpoPath: IRpoPatch): Thenable<string> {
+  public doExportToTxt(
+    server: any,
+    rpoInfo: any,
+    rpoPath: IRpoPatch
+  ): Thenable<string> {
     return new Promise<string>((resolve, reject) => {
       const fs = require('fs');
       const tmp = require('tmp');
-      const file = tmp.fileSync({ prefix: "vscode-tds-rpo", postfix: ".log" });
+      const file = tmp.fileSync({ prefix: 'vscode-tds-rpo', postfix: '.log' });
 
       const writeLine = (line: string) => {
         fs.appendFileSync(file.fd, line);
         fs.appendFileSync(file.fd, '\n');
-      }
+      };
       const SEPARATOR_LINE = '-'.repeat(50);
 
       writeLine(SEPARATOR_LINE);
@@ -161,7 +169,15 @@ export class RpoInfoLoader {
       writeLine(SEPARATOR_LINE);
 
       writeLine(`File`);
-      writeLine(`  Applyed .....: ${rpoPath.typePatch == 1 ? "Update" : rpoPath.typePatch == 2 ? "Package" : "Correction"}`);
+      writeLine(
+        `  Applyed .....: ${
+          rpoPath.typePatch == 1
+            ? 'Update'
+            : rpoPath.typePatch == 2
+            ? 'Package'
+            : 'Correction'
+        }`
+      );
       writeLine(`  Build .......: ${rpoPath.buildFileApplication}`);
       writeLine(`  Date ........: ${rpoPath.dateFileApplication}`);
       writeLine(SEPARATOR_LINE);
@@ -172,45 +188,51 @@ export class RpoInfoLoader {
       writeLine(SEPARATOR_LINE);
 
       if (rpoPath.skipOld) {
-        writeLine("This file overwrote more recent resources");
+        writeLine('This file overwrote more recent resources');
         writeLine(SEPARATOR_LINE);
       }
 
       rpoPath.programsApp.forEach((value: IProgramApp) => {
-        writeLine(value.name.padEnd(29, " ") + "\t" + value.date);
-      })
+        writeLine(value.name.padEnd(29, ' ') + '\t' + value.date);
+      });
       writeLine(SEPARATOR_LINE);
 
-      const ext = vscode.extensions.getExtension("TOTVS.tds-vscode");
+      const ext = vscode.extensions.getExtension('TOTVS.tds-vscode');
       const now = new Date().toLocaleString();
 
-      writeLine("");
+      writeLine('');
       writeLine(SEPARATOR_LINE);
       writeLine(`Total resources: ${rpoPath.programsApp.length}`);
-      writeLine(`Generated by TDS-VSCode version${ext.packageJSON["version"]}`);
+      writeLine(`Generated by TDS-VSCode version${ext.packageJSON['version']}`);
       writeLine(`at ${now}`);
       writeLine(SEPARATOR_LINE);
 
       return resolve(file.name);
-    })
+    });
   }
 
-  private prepareNodes(parent: any, rpoInfo: IRpoInfoData) {
+  private prepareNodes(parent: any, rpoInfo: IRpoInfoResult) {
     const map: any = {};
 
     const dateRpo: Date = new Date(Date.parse(rpoInfo.dateGeneration));
-    rpoInfo.dateGeneration = dateRpo.toLocaleDateString() + " " + dateRpo.toLocaleTimeString();
+    rpoInfo.dateGeneration =
+      dateRpo.toLocaleDateString() + ' ' + dateRpo.toLocaleTimeString();
 
     rpoInfo.rpoPatchs.forEach((rpoPatch: IRpoPatch) => {
-      const name: string = rpoPatch.dateFileApplication.split("T")[0];
+      const name: string = rpoPatch.dateFileApplication.split('T')[0];
 
       let key = name.substr(0, 7);
       if (!map[key]) {
-        map[key] = { id: "node_" + key, name: key, children: [] };
+        map[key] = { id: 'node_' + key, name: key, children: [] };
         parent.children.push(map[key]);
       }
 
-      map[key].children.push({ id: "node_" + key + map[key].children.length, name: name, children: [], rpoPatch: rpoPatch });
+      map[key].children.push({
+        id: 'node_' + key + map[key].children.length,
+        name: name,
+        children: [],
+        rpoPatch: rpoPatch,
+      });
 
       const dateApp: Date = new Date(Date.parse(rpoPatch.dateFileApplication));
       const dateGen: Date = new Date(Date.parse(rpoPatch.dateFileGeneration));
@@ -219,10 +241,10 @@ export class RpoInfoLoader {
 
       rpoPatch.programsApp.forEach((program: IProgramApp) => {
         const date: Date = new Date(Date.parse(program.date));
-        program.date = date.toLocaleDateString() + " " + date.toLocaleTimeString();
-      })
+        program.date =
+          date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+      });
     });
-
   }
 
   public updateRpoInfo() {
@@ -231,15 +253,19 @@ export class RpoInfoLoader {
     }
 
     vscode.window.setStatusBarMessage(
-      "$(clock)" +
-      localize(
-        "REQUESTING_DATA_FROM_SERVER",
-        "Requesting data from the server [{0}]",
-        this.monitorServer.name
-      ),
-      sendRpoInfo(this.monitorServer).then(
-        (rpoInfo: IRpoInfoData) => {
-          const parent: any = { id: "node_" + rpoInfo.environment, name: rpoInfo.environment, children: [] }
+      '$(clock)' +
+        localize(
+          'REQUESTING_DATA_FROM_SERVER',
+          'Requesting data from the server [{0}]',
+          this.monitorServer.name
+        ),
+      this.monitorServer.getRpoInfo().then(
+        (rpoInfo: IRpoInfoResult) => {
+          const parent: any = {
+            id: 'node_' + rpoInfo.environment,
+            name: rpoInfo.environment,
+            children: [],
+          };
           this.prepareNodes(parent, rpoInfo);
           this._panel.webview.postMessage({
             command: RpoInfoPanelAction.UpdateRpoInfo,
@@ -251,9 +277,8 @@ export class RpoInfoLoader {
           });
         },
         (err: Error) => {
-          languageClient.error(err.message, err);
           vscode.window.showErrorMessage(
-            err.message + localize("SEE_LOG", ". See log for details.")
+            err.message + localize('SEE_LOG', '. See log for details.')
           );
         }
       )
@@ -261,7 +286,7 @@ export class RpoInfoLoader {
   }
 
   private updateStatus(msg: string) {
-    let icon: string = "$(clock)";
+    let icon: string = '$(clock)';
 
     vscode.window.setStatusBarMessage(`${icon} ${msg}`);
   }
@@ -269,10 +294,10 @@ export class RpoInfoLoader {
   private getWebviewContent(): string {
     // Local path to main script run in the webview
     const reactAppPathOnDisk = vscode.Uri.file(
-      path.join(this._extensionPath, "out", "webpack", "rpoInfoPanel.js")
+      path.join(this._extensionPath, 'out', 'webpack', 'rpoInfoPanel.js')
     );
 
-    const servers: ServerItem[] = this.monitorServer
+    const servers: IServerDebugger[] = this.monitorServer
       ? [this.monitorServer]
       : [];
 
@@ -311,39 +336,38 @@ export class RpoInfoLoader {
 function getTranslations() {
   return {
     NO_INFO_FROM_RPO: localize(
-      "NO_INFO_FROM_RPO",
-      "There is no information about the RPO."
+      'NO_INFO_FROM_RPO',
+      'There is no information about the RPO.'
     ),
-    ACTIONS: localize("ACTIONS", "Actions"),
-    DRAG_HEADERS: localize("DRAG_HEADERS", "Drag headers ..."),
-    FILTER: localize("FILTER", "Filter"),
-    FILTERING_ON_OFF: localize("FILTERING_ON_OFF", "Filtering on/off"),
-    FIRST: localize("FIRST", "First"),
-    FIRST_PAGE: localize("FIRST_PAGE", "First page"),
-    FROM_TO_OF_COUNT: localize("FROM_TO_OF_COUNT", "from-to de count"),
-    GROUPED_BY: localize("GROUPED_BY", "Grouped by:"),
-    GROUPING_ON_OFF: localize("GROUPING_ON_OFF", "Grouping on/off"),
-    TREE_ON_OFF: localize("TREE_ON_OFF", "Tree server on/off"),
-    LAST: localize("LAST", "Last"),
-    LAST_PAGE: localize("LAST_PAGE", "Last page"),
-    LINES_PAGE: localize("LINES_PAGE", "lines/p."),
-    NEXT: localize("NEXT", "Next"),
-    NEXT_PAGE: localize("NEXT_PAGE", "Next page"),
-    PREVIOUS: localize("PREVIOUS", "Previous"),
-    PREVIOUS_PAGE: localize("PREVIOUS_PAGE", "Previous page"),
+    ACTIONS: localize('ACTIONS', 'Actions'),
+    DRAG_HEADERS: localize('DRAG_HEADERS', 'Drag headers ...'),
+    FILTER: localize('FILTER', 'Filter'),
+    FILTERING_ON_OFF: localize('FILTERING_ON_OFF', 'Filtering on/off'),
+    FIRST: localize('FIRST', 'First'),
+    FIRST_PAGE: localize('FIRST_PAGE', 'First page'),
+    FROM_TO_OF_COUNT: localize('FROM_TO_OF_COUNT', 'from-to de count'),
+    GROUPED_BY: localize('GROUPED_BY', 'Grouped by:'),
+    GROUPING_ON_OFF: localize('GROUPING_ON_OFF', 'Grouping on/off'),
+    TREE_ON_OFF: localize('TREE_ON_OFF', 'Tree server on/off'),
+    LAST: localize('LAST', 'Last'),
+    LAST_PAGE: localize('LAST_PAGE', 'Last page'),
+    LINES_PAGE: localize('LINES_PAGE', 'lines/p.'),
+    NEXT: localize('NEXT', 'Next'),
+    NEXT_PAGE: localize('NEXT_PAGE', 'Next page'),
+    PREVIOUS: localize('PREVIOUS', 'Previous'),
+    PREVIOUS_PAGE: localize('PREVIOUS_PAGE', 'Previous page'),
     RESET_CONFIGURATIONS: localize(
-      "RESET_CONFIGURATIONS",
-      "Reset configurations"
+      'RESET_CONFIGURATIONS',
+      'Reset configurations'
     ),
-    SEARCH: localize("SEARCH", "Search"),
-    SEARCH_ALL_COLUMNS: localize("SEARCH_ALL_COLUMNS", "Search in all columns"),
-    SERVER: localize("SERVER", "Server"),
-    SHOW_HIDE_COLUMNS: localize("SHOW_HIDE_COLUMNS", "Show/hide columns"),
-    INITIALIZING: localize("INITIALIZING", "(initializing)"),
-    SHOW_COLUMNS: localize("SHOW_COLUMNS", "Show Columns"),
-    RESOURCES: localize("RESOURCES", "Resources"),
-    EXPORT_TXT: localize("EXPORT_TXT", "Export as Text"),
-    RPO_LOG: localize("RPO_LOG", "Repository Log")
-
+    SEARCH: localize('SEARCH', 'Search'),
+    SEARCH_ALL_COLUMNS: localize('SEARCH_ALL_COLUMNS', 'Search in all columns'),
+    SERVER: localize('SERVER', 'Server'),
+    SHOW_HIDE_COLUMNS: localize('SHOW_HIDE_COLUMNS', 'Show/hide columns'),
+    INITIALIZING: localize('INITIALIZING', '(initializing)'),
+    SHOW_COLUMNS: localize('SHOW_COLUMNS', 'Show Columns'),
+    RESOURCES: localize('RESOURCES', 'Resources'),
+    EXPORT_TXT: localize('EXPORT_TXT', 'Export as Text'),
+    RPO_LOG: localize('RPO_LOG', 'Repository Log'),
   };
 }

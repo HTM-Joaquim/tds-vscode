@@ -3,11 +3,8 @@ import DialogTitle from "@material-ui/core/DialogTitle";
 import Dialog from "@material-ui/core/Dialog";
 import {
   DialogContent,
-  DialogContentText,
   DialogActions,
   Button,
-  TextField,
-  Paper,
 } from "@material-ui/core";
 import MaterialTable from "material-table";
 import { i18n } from "../helper";

@@ -21,6 +21,11 @@
 				</div>
 
 				<div class="wrap-input">
+					<input class="inputText" type="text" value="${d.target}" disabled=true>
+				</div>
+				<p>${d.localize["tds.webview.newServer.target"]}<b>${d.target}</b></p>
+
+				<div class="wrap-input">
 					<select name="serverType" id="serverTypeID" class="">
 						<option value="totvs_server_protheus">Protheus (Adv/PL)</option>
 						<option value="totvs_server_logix">Logix (4GL)</option>
@@ -80,15 +85,17 @@
 		const includePath = document.getElementById('includePath').value.split(";");
 		const serverType = document.getElementById('serverTypeID').value;
 
-		vscode.postMessage({
+		const post = {
 			command: 'saveServer',
 			address: addressID,
 			serverName: serverNameID,
-			port: portID,
+			port: Number.parseInt(portID),
 			'close': close,
 			includes: includePath,
 			serverType: serverType
-		});
+		};
+		console.log(post);
+		vscode.postMessage(post);
 	}
 
 	window.addEventListener('message', event => {

@@ -39,7 +39,6 @@ import {
   ProvideOnTypeFormattingEditsSignature,
 } from 'vscode-languageclient/lib/main';
 import * as vscode from 'vscode';
-import { reconnectLastServer } from './serversView';
 
 import * as nls from 'vscode-nls';
 import { syncSettings } from './server/languageServerSettings';
@@ -50,6 +49,7 @@ import {
   ITdsLanguageClient,
 } from '@totvs/tds-languageclient';
 import path = require('path');
+import { TDSConfiguration } from './configurations';
 
 let localize = nls.loadMessageBundle();
 
@@ -151,19 +151,14 @@ export function getLanguageClient(
 
   languageClient
     .onReady()
-    .then(async () => {
+    .then(() => {
       isLSInitialized = true;
-
-      const configADVPL = vscode.workspace.getConfiguration(
-        'totvsLanguageServer'
-      ); //transformar em configuracao de workspace
 
       syncSettings();
 
-      let isReconnectLastServer = configADVPL.get('reconnectLastServer');
-      if (isReconnectLastServer) {
-        reconnectLastServer();
-      }
+      // if (TDSConfiguration.isReconnectLastServer()) {
+      //   reconnectLastServer();
+      // }
     })
     .catch((e) => {
       // TODO: remove cquery.launch.workingDirectory after July 2018

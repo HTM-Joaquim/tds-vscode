@@ -11,6 +11,7 @@ import { statSync, chmodSync } from 'fs';
 import Utils, { MESSAGETYPE } from '../utils';
 import * as path from 'path';
 import * as nls from 'vscode-nls';
+import { TDSConfiguration } from '../configurations';
 
 const localize = nls.loadMessageBundle();
 
@@ -83,7 +84,7 @@ export async function getProgramName() {
   let config = undefined;
 
   try {
-    config = Utils.getLaunchConfig();
+    config = TDSConfiguration.loadLaunchConfig();
   } catch (e) {
     Utils.logInvalidLaunchJsonFile(e);
   }
@@ -144,7 +145,7 @@ export async function getProgramName() {
 
             config.lastProgramExecuted = programArgs.program;
 
-            Utils.saveLaunchConfig(config);
+            TDSConfiguration.saveLaunchConfig(config);
           }
           resolve(programArgs);
         })
@@ -233,7 +234,7 @@ export function toggleTableSync() {
     let launchConfig = undefined;
 
     try {
-      launchConfig = Utils.getLaunchConfigFile();
+      launchConfig = TDSConfiguration.loadLaunchConfig();
       launchConfig.configurations.forEach((launchElement) => {
         if (
           debugSession !== undefined &&
@@ -263,7 +264,7 @@ export function toggleTableSync() {
           }
         }
       });
-      Utils.saveLaunchConfig(launchConfig);
+      TDSConfiguration.saveLaunchConfig(launchConfig);
     } catch (e) {
       Utils.logInvalidLaunchJsonFile(e);
     }
@@ -312,7 +313,7 @@ async function pickProgramArguments() {
   let config = undefined;
 
   try {
-    config = Utils.getLaunchConfig();
+    config = TDSConfiguration.loadLaunchConfig();
   } catch (e) {
     Utils.logInvalidLaunchJsonFile(e);
   }
@@ -379,7 +380,7 @@ async function pickProgramArguments() {
 
             if (!find) {
               config.lastPrograms.push(new QuickPickProgram(program, args));
-              Utils.saveLaunchConfig(config);
+              TDSConfiguration.saveLaunchConfig(config);
             }
           }
 

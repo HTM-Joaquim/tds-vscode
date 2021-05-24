@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as vscode from 'vscode';
 import Utils from './utils';
 import * as nls from 'vscode-nls';
+import { serverManager } from './serverManager';
 
 const localize = nls.config({
   locale: vscode.env.language,
@@ -106,10 +107,9 @@ export function rpoTokenInputBox() {
       prompt: 'Input RPO Token string',
     })
     .then((rpoTokenString: string) => {
-      saveRpoTokenString(rpoTokenString.trim())
-        .catch((error: string) => {
-          vscode.window.showErrorMessage(error);
-        });
+      saveRpoTokenString(rpoTokenString.trim()).catch((error: string) => {
+        vscode.window.showErrorMessage(error);
+      });
     });
 }
 
@@ -119,7 +119,7 @@ export function saveRpoTokenString(rpoTokenString: string): Promise<boolean> {
     if (rpoToken.error) {
       reject(rpoToken.error);
     } else {
-      Utils.saveRpoTokenInfos(rpoToken);
+      serverManager.saveRpoTokenInfos(rpoToken);
       resolve(true);
     }
   });

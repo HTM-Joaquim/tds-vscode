@@ -505,11 +505,6 @@
           "default": "LS",
           "description": "%tds.package.editor.toggle.autocomplete%"
         },
-        "totvsLanguageServer.workspaceServerConfig": {
-          "type": "boolean",
-          "default": false,
-          "description": "%tds.package.workspaceServerConfig%"
-        },
         "4gl.formatter": {
           "type": "object",
           "description": "Formatação 4GL",
@@ -1354,78 +1349,78 @@
       ],
       "view/item/context": [
         {
+          "command": "totvs-developer-studio.add",
+          "when": "view == totvs_server && viewItem == folderTreeItem",
+          "group": "inline@1"
+        },
+        {
+          "command": "totvs-developer-studio.config",
+          "when": "view == totvs_server && viewItem == folderTreeItem",
+          "group": "inline@2"
+        },
+        {
           "command": "totvs-developer-studio.connect",
-          "when": "view == totvs_server && viewItem == serverItemNotConnected",
+          "when": "view == totvs_server && viewItem == serverTreeItemNotConnected",
           "group": "AAtotvsServer@1"
         },
         {
           "command": "totvs-developer-studio.reconnect",
-          "when": "view == totvs_server && viewItem == serverItemNotConnected",
+          "when": "view == totvs_server && viewItem == serverTreeItemNotConnected",
           "group": "AAtotvsServer@1"
         },
         {
           "command": "totvs-developer-studio.disconnect",
-          "when": "view == totvs_server && viewItem == serverItem",
+          "when": "view == totvs_server && viewItem == serverTreeItem",
           "group": "AAtotvsServer@2"
         },
         {
           "command": "tds-monitor.open-monitor-view",
-          "when": "view == totvs_server && viewItem == serverItem",
+          "when": "view == totvs_server && viewItem == serverTreeItem",
           "group": "AAtotvsServer@3"
         },
         {
           "command": "totvs-developer-studio.patchGenerate.fromRPO",
-          "when": "view == totvs_server && viewItem == serverItem",
+          "when": "view == totvs_server && viewItem == serverTreeItem",
           "group": "CtotvsPatch@1"
         },
         {
           "command": "totvs-developer-studio.patchApply",
-          "when": "view == totvs_server && viewItem == serverItem",
+          "when": "view == totvs_server && viewItem == serverTreeItem",
           "group": "CtotvsPatch@2"
         },
         {
           "command": "totvs-developer-studio.open-loadrpoinfo-view",
-          "when": "view == totvs_server && viewItem == serverItem",
+          "when": "view == totvs_server && viewItem == serverTreeItem",
           "group": "CtotvsPatch@3"
         },
         {
           "command": "totvs-developer-studio.inspectorObjects",
-          "when": "view == totvs_server && viewItem == serverItem",
+          "when": "view == totvs_server && viewItem == serverTreeItem",
           "group": "DtotvsInspect@1"
         },
         {
           "command": "totvs-developer-studio.inspectorFunctions",
-          "when": "view == totvs_server && viewItem == serverItem",
+          "when": "view == totvs_server && viewItem == serverTreeItem",
           "group": "DtotvsInspect@2"
         },
         {
           "command": "totvs-developer-studio.selectenv",
-          "when": "view == totvs_server && viewItem == envSectionNotCurrent",
+          "when": "view == totvs_server && viewItem == environmentTreeItemNotCurrent",
           "group": "inline@2"
         },
         {
           "command": "totvs-developer-studio.delete.environment",
-          "when": "view == totvs_server && viewItem == envSectionNotCurrent",
+          "when": "view == totvs_server && viewItem == environmentTreeItemNotCurrent",
           "group": "inline@1"
         },
         {
           "command": "totvs-developer-studio.delete.file.fromRPO",
-          "when": "view == totvs_server && viewItem == serverItem",
+          "when": "view == totvs_server && viewItem == serverTreeItem",
           "group": "EtotvsRPO@2"
         },
         {
-          "command": "totvs-developer-studio.add",
-          "when": "view == totvs_server",
-          "group": "ABtotvsServer@3"
-        },
-        {
-          "command": "totvs-developer-studio.config",
-          "when": "view == totvs_server",
-          "group": "XtotvsServer@1"
-        },
-        {
           "command": "totvs-developer-studio.rename",
-          "when": "view == totvs_server && viewItem == serverItem",
+          "when": "view == totvs_server && viewItem == serverTreeItem",
           "group": "ABtotvsServer@4"
         },
         {
@@ -1440,43 +1435,33 @@
         },
         {
           "command": "totvs-developer-studio.delete",
-          "when": "view == totvs_server && viewItem == serverItemNotConnected",
+          "when": "view == totvs_server && viewItem == serverTreeItemNotConnected",
           "group": "inline@1"
         },
         {
           "command": "totvs-developer-studio.connect",
-          "when": "view == totvs_server && viewItem == serverItemNotConnected",
+          "when": "view == totvs_server && viewItem == serverTreeItemNotConnected",
           "group": "inline@2"
         },
         {
           "command": "totvs-developer-studio.disconnect",
-          "when": "view == totvs_server && viewItem == serverItem",
+          "when": "view == totvs_server && viewItem == serverTreeItem",
           "group": "inline@2"
         },
         {
           "command": "totvs-developer-studio.defragRPO",
-          "when": "view == totvs_server && viewItem == serverItem",
+          "when": "view == totvs_server && viewItem == serverTreeItem",
           "group": "EtotvsRPO@1"
         },
         {
           "command": "totvs-developer-studio.rpoCheckIntegrity",
-          "when": "view == totvs_server && viewItem == serverItem",
+          "when": "view == totvs_server && viewItem == serverTreeItem",
           "group": "EtotvsRPO@1"
         }
       ],
       "view/title": [
         {
-          "command": "totvs-developer-studio.add",
-          "when": "view == totvs_server",
-          "group": "navigation"
-        },
-        {
           "command": "tds-monitor.open-monitor-view",
-          "when": "view == totvs_server",
-          "group": "navigation"
-        },
-        {
-          "command": "totvs-developer-studio.config",
           "when": "view == totvs_server",
           "group": "navigation"
         }

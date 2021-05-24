@@ -1,7 +1,7 @@
-import { languageClient } from '../extension';
 import * as vscode from 'vscode';
-import * as nls from 'vscode-nls';
-import Utils from '../utils';
+import { languageClient } from '../extension';
+import { IServerDebugger, serverManager } from '../serverManager';
+import { TDSConfiguration } from '../configurations';
 
 export function toggleAutocompleteBehavior() {
   let config: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration(
@@ -18,37 +18,38 @@ export function toggleAutocompleteBehavior() {
 }
 
 export function syncSettings() {
-  let config = vscode.workspace.getConfiguration('totvsLanguageServer');
+  let includesList: string[] = serverManager.getIncludes(true);
+  let includes: string = includesList.join(';');
 
-  const servers = Utils.getServersConfig();
-  let includesList = servers.includes as Array<string>;
-  let includes = '';
-  includesList.forEach((includeItem) => {
-    includes += includeItem + ';';
-  });
   changeSettings({
     changeSettingInfo: { scope: 'advpls', key: 'includes', value: includes },
   });
 
-  let behavior = config.get('editor.toggle.autocomplete');
   changeSettings({
     changeSettingInfo: {
       scope: 'advpls',
       key: 'autocomplete',
-      value: behavior,
+      value: TDSConfiguration.autocompleteBehavior(),
     },
   });
 
-  let notificationlevel = config.get('editor.show.notification');
   changeSettings({
     changeSettingInfo: {
       scope: 'advpls',
       key: 'notificationlevel',
-      value: notificationlevel,
+      value: TDSConfiguration.notificationLevel(),
     },
   });
 }
 
-export function changeSettings(jsonData: any) {
-  languageClient.sendRequest('$totvsserver/changeSetting', jsonData);
+function changeSettings(jsonData: any) {
+  //@acandido
+  languageClient.sendRequest('$totvsserver/changeSetting', jsonData).then(
+    (value: any) => {
+      vscode.window.showInformationMessage(value);
+    },
+    (error: any) => {
+      vscode.window.showErrorMessage(error);
+    }
+  );
 }

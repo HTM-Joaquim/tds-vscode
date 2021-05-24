@@ -1,18 +1,9 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import * as stripJsonComments from 'strip-json-comments';
 import * as cheerio from 'cheerio';
-import * as ini from 'ini';
 import * as nls from 'vscode-nls';
-import { languageClient } from './extension';
-import { EnvironmentTreeItem } from './serverItemProvider';
-import { Authorization, CompileKey } from './compileKey/compileKey';
-import { changeSettings } from './server/languageServerSettings';
-import { IRpoToken } from './rpoToken';
-import { IServerItem, serverManager } from './serverManager';
 import { TDSConfiguration } from './configurations';
-//import { sendRpoToken } from './protocolMessages';
 
 const homedir = require('os').homedir();
 const localize = nls.loadMessageBundle();
@@ -42,82 +33,7 @@ export enum MESSAGETYPE {
 }
 
 export default class Utils {
-  /**
-   * Subscrição para evento de seleção de servidor/ambiente.
-   */
-  static get onDidSelectedServer(): vscode.Event<IServerItem> {
-    return Utils._onDidSelectedServer.event;
-  }
-
-  /**
-   * Subscrição para evento de chave de compilação.
-   */
-  static get onDidSelectedKey(): vscode.Event<CompileKey> {
-    return Utils._onDidSelectedKey.event;
-  }
-
-  /**
-   * Subscrição para evento de token de RPO.
-   */
-  static get onDidRpoTokenSelected(): vscode.Event<void> {
-    return Utils._onDidRpoTokenSelected.event;
-  }
-
-  /**
-   * Emite a notificação de seleção de servidor/ambiente
-   */
-  private static _onDidSelectedServer = new vscode.EventEmitter<IServerItem>();
-
-  /**
-   * Emite a notificação de seleção de chave de compilação
-   */
-  private static _onDidSelectedKey = new vscode.EventEmitter<CompileKey>();
-
-  /**
-   * Emite a notificação de token de RPO
-   */
-  private static _onDidRpoTokenSelected = new vscode.EventEmitter<void>();
-
-  // /**
-  //  * Retorna o path completo do launch.json
-  //  */
-  // static getLaunchConfigFile() {
-  //   return path.join(this.getVSCodePath(), 'launch.json');
-  // }
-
-  /**
-   * Retorna todo o conteudo do launch.json
-   */
-  // static getLaunchConfig() {
-  //   let config: any;
-  //   let exist = fs.existsSync(Utils.getLaunchConfigFile());
-  //   if (exist) {
-  //     let json = fs.readFileSync(Utils.getLaunchConfigFile()).toString();
-  //     if (json) {
-  //       try {
-  //         config = JSON.parse(stripJsonComments(json));
-  //       } catch (e) {
-  //         console.error(e);
-  //         throw e;
-  //         //return {};
-  //       }
-  //     }
-  //   }
-  //   return config;
-  // }
-
-  // static saveLaunchConfig(config: JSON) {
-  //   let fs = require('fs');
-  //   fs.writeFileSync(
-  //     Utils.getLaunchConfigFile(),
-  //     JSON.stringify(config, null, '\t'),
-  //     (err) => {
-  //       if (err) {
-  //         console.error(err);
-  //       }
-  //     }
-  //   );
-  // }
+  static readonly SERVER_DEFINITION_FILE: string = 'servers.json';
 
   // static updateSavedToken(id: string, environment: string, token: string) {
   //   const servers = Utils.getServersConfig();
@@ -346,63 +262,64 @@ export default class Utils {
   /**
    * Cria o arquivo launch.json caso ele nao exista.
    */
-  static createLaunchConfig() {
-    let launchConfig = undefined;
-    try {
-      launchConfig = Utils.getLaunchConfig();
-      if (!launchConfig) {
-        let fs = require('fs');
-        let ext = vscode.extensions.getExtension('TOTVS.tds-vscode');
-        if (ext) {
-          let sampleLaunch = {
-            version: '0.2.0',
-            configurations: [],
-          };
 
-          let pkg = ext.packageJSON;
-          let contributes = pkg['contributes'];
-          let debug = (contributes['debuggers'] as any[]).filter(
-            (element: any) => {
-              return element.type === 'totvs_language_debug';
-            }
-          );
+  // static createLaunchConfig() {
+  //   let launchConfig = undefined;
+  //   try {
+  //     launchConfig = Utils.getLaunchConfig();
+  //     if (!launchConfig) {
+  //       let fs = require('fs');
+  //       let ext = vscode.extensions.getExtension('TOTVS.tds-vscode');
+  //       if (ext) {
+  //         let sampleLaunch = {
+  //           version: '0.2.0',
+  //           configurations: [],
+  //         };
 
-          if (debug.length === 1) {
-            let initCfg = (debug[0]['initialConfigurations'] as any[]).filter(
-              (element: any) => {
-                return element.request === 'launch';
-              }
-            );
+  //         let pkg = ext.packageJSON;
+  //         let contributes = pkg['contributes'];
+  //         let debug = (contributes['debuggers'] as any[]).filter(
+  //           (element: any) => {
+  //             return element.type === 'totvs_language_debug';
+  //           }
+  //         );
 
-            if (initCfg.length === 1) {
-              sampleLaunch = {
-                version: '0.2.0',
-                configurations: [initCfg[0] as never],
-              };
-            }
-          }
+  //         if (debug.length === 1) {
+  //           let initCfg = (debug[0]['initialConfigurations'] as any[]).filter(
+  //             (element: any) => {
+  //               return element.request === 'launch';
+  //             }
+  //           );
 
-          if (!fs.existsSync(Utils.getVSCodePath())) {
-            fs.mkdirSync(Utils.getVSCodePath());
-          }
+  //           if (initCfg.length === 1) {
+  //             sampleLaunch = {
+  //               version: '0.2.0',
+  //               configurations: [initCfg[0] as never],
+  //             };
+  //           }
+  //         }
 
-          let launchJson = Utils.getLaunchConfigFile();
+  //         if (!fs.existsSync(Utils.getVSCodePath())) {
+  //           fs.mkdirSync(Utils.getVSCodePath());
+  //         }
 
-          fs.writeFileSync(
-            launchJson,
-            JSON.stringify(sampleLaunch, null, '\t'),
-            (err) => {
-              if (err) {
-                console.error(err);
-              }
-            }
-          );
-        }
-      }
-    } catch (e) {
-      Utils.logInvalidLaunchJsonFile(e);
-    }
-  }
+  //         let launchJson = Utils.getLaunchConfigFile();
+
+  //         fs.writeFileSync(
+  //           launchJson,
+  //           JSON.stringify(sampleLaunch, null, '\t'),
+  //           (err) => {
+  //             if (err) {
+  //               console.error(err);
+  //             }
+  //           }
+  //         );
+  //       }
+  //     }
+  //   } catch (e) {
+  //     Utils.logInvalidLaunchJsonFile(e);
+  //   }
+  // }
 
   // Duplicado: Usar o getServerById
   // /**
@@ -433,46 +350,46 @@ export default class Utils {
    * @param id id do servidor alvo.
    * @param serversConfig opcional, se omitido utiliza o padrao
    */
-  static getServerById(
-    id: string,
-    serversConfig: any = Utils.getServersConfig()
-  ) {
-    let server;
-    if (serversConfig.configurations) {
-      const configs = serversConfig.configurations;
-      configs.forEach((element) => {
-        if (element.id === id) {
-          server = element;
-          if (server.environments === undefined) {
-            server.environments = [];
-          }
-        }
-      });
-    }
-    return server;
-  }
+  // static getServerById(
+  //   id: string,
+  //   serversConfig: any = Utils.getServersConfig()
+  // ) {
+  //   let server;
+  //   if (serversConfig.configurations) {
+  //     const configs = serversConfig.configurations;
+  //     configs.forEach((element) => {
+  //       if (element.id === id) {
+  //         server = element;
+  //         if (server.environments === undefined) {
+  //           server.environments = [];
+  //         }
+  //       }
+  //     });
+  //   }
+  //   return server;
+  // }
 
   /**
    *Recupera um servidor pelo nome informado.
    * @param name nome do servidor alvo.
    */
-  static getServerForNameWithConfig(name: string, serversConfig: any) {
-    let server;
+  // static getServerForNameWithConfig(name: string, serversConfig: any) {
+  //   let server;
 
-    if (serversConfig.configurations) {
-      const configs = serversConfig.configurations;
+  //   if (serversConfig.configurations) {
+  //     const configs = serversConfig.configurations;
 
-      configs.forEach((element) => {
-        if (element.name === name) {
-          server = element;
-          if (server.environments === undefined) {
-            server.environments = [];
-          }
-        }
-      });
-    }
-    return server;
-  }
+  //     configs.forEach((element) => {
+  //       if (element.name === name) {
+  //         server = element;
+  //         if (server.environments === undefined) {
+  //           server.environments = [];
+  //         }
+  //       }
+  //     });
+  //   }
+  //   return server;
+  // }
 
   static addCssToHtml(htmlFilePath: vscode.Uri, cssFilePath: vscode.Uri) {
     const htmlContent = fs.readFileSync(
@@ -497,95 +414,87 @@ export default class Utils {
   /**
    *Salva uma nova configuracao de include.
    */
-  static saveIncludePath(path) {
-    const servers = Utils.getServersConfig();
+  // static saveIncludePath(path) {
+  //   const servers = Utils.getServersConfig();
 
-    servers.includes = path;
+  //   servers.includes = path;
 
-    Utils.persistServersInfo(servers);
+  //   Utils.persistServersInfo(servers);
 
-    let includes = '';
-    path.forEach((includeItem) => {
-      includes += includeItem + ';';
-    });
-    changeSettings({
-      changeSettingInfo: { scope: 'advpls', key: 'includes', value: includes },
-    });
-  }
+  //   let includes = '';
+  //   path.forEach((includeItem) => {
+  //     includes += includeItem + ';';
+  //   });
+  //   changeSettings({
+  //     changeSettingInfo: { scope: 'advpls', key: 'includes', value: includes },
+  //   });
+  // }
 
   /**
    *Atualiza no server.json a build de um servidor
    * @param id ID do server que sera atualizado
    * @param buildVersion Nova build do servidor
    */
-  static updateBuildVersion(id: string, buildVersion: string, secure: boolean) {
-    let result = false;
-    if (!id || !buildVersion) {
-      return result;
-    }
-    const serverConfig = Utils.getServersConfig();
-    serverConfig.configurations.forEach((element) => {
-      if (element.id === id) {
-        element.buildVersion = buildVersion;
-        element.secure = secure;
-        Utils.persistServersInfo(serverConfig);
-        result = true;
-      }
-    });
+  // static updateBuildVersion(id: string, buildVersion: string, secure: boolean) {
+  //   let result = false;
+  //   if (!id || !buildVersion) {
+  //     return result;
+  //   }
+  //   const serverConfig = Utils.getServersConfig();
+  //   serverConfig.configurations.forEach((element) => {
+  //     if (element.id === id) {
+  //       element.buildVersion = buildVersion;
+  //       element.secure = secure;
+  //       Utils.persistServersInfo(serverConfig);
+  //       result = true;
+  //     }
+  //   });
 
-    return result;
-  }
+  //   return result;
+  // }
 
   /**
    *Atualiza no server.json o nome de um servidor
    * @param id ID do server que sera atualizado
    * @param newName Novo nome do servidor
    */
-  static updateServerName(id: string, newName: string) {
-    let result = false;
-    if (!id || !newName) {
-      return result;
-    }
-    const serverConfig = Utils.getServersConfig();
-    serverConfig.configurations.forEach((element) => {
-      if (element.id === id) {
-        element.name = newName;
-        Utils.persistServersInfo(serverConfig);
-        result = true;
-      }
-    });
+  // static updateServerName(id: string, newName: string) {
+  //   let result = false;
+  //   if (!id || !newName) {
+  //     return result;
+  //   }
+  //   const serverConfig = Utils.getServersConfig();
+  //   serverConfig.configurations.forEach((element) => {
+  //     if (element.id === id) {
+  //       element.name = newName;
+  //       Utils.persistServersInfo(serverConfig);
+  //       result = true;
+  //     }
+  //   });
 
-    return result;
-  }
+  //   return result;
+  // }
 
-  static updatePatchGenerateDir(id: string, patchGenerateDir: string) {
-    let result = false;
-    if (
-      !id ||
-      id.length == 0 ||
-      !patchGenerateDir ||
-      patchGenerateDir.length == 0
-    ) {
-      return result;
-    }
-    const serverConfig = Utils.getServersConfig();
-    serverConfig.configurations.forEach((element) => {
-      if (element.id === id) {
-        element.patchGenerateDir = patchGenerateDir;
-        Utils.persistServersInfo(serverConfig);
-        result = true;
-      }
-    });
-    return result;
-  }
-
-  static readCompileKeyFile(path): Authorization {
-    if (fs.existsSync(path)) {
-      const parseIni = ini.parse(fs.readFileSync(path, 'utf-8').toLowerCase()); // XXX toLowerCase??
-      return parseIni.authorization;
-    }
-    return undefined;
-  }
+  // static updatePatchGenerateDir(id: string, patchGenerateDir: string) {
+  //   let result = false;
+  //   if (
+  //     !id ||
+  //     id.length == 0 ||
+  //     !patchGenerateDir ||
+  //     patchGenerateDir.length == 0
+  //   ) {
+  //     return result;
+  //   }
+  //   const serverConfig = Utils.getServersConfig();
+  //   serverConfig.configurations.forEach((element) => {
+  //     if (element.id === id) {
+  //       element.patchGenerateDir = patchGenerateDir;
+  //       Utils.persistServersInfo(serverConfig);
+  //       result = true;
+  //     }
+  //   });
+  //   return result;
+  // }
 
   /**
    * Logs the informed messaged in the console and/or shows a dialog
@@ -599,21 +508,17 @@ export default class Utils {
     messageType: MESSAGETYPE,
     showDialog: boolean
   ) {
-    let config = vscode.workspace.getConfiguration('totvsLanguageServer');
-    let notificationLevel = config.get('editor.show.notification');
+    const notificationLevel: string = TDSConfiguration.notificationLevel();
+
     switch (messageType) {
       case MESSAGETYPE.Error:
-        languageClient !== undefined
-          ? languageClient.error(message)
-          : console.log(message);
+        console.log(message);
         if (showDialog && notificationLevel !== 'none') {
           vscode.window.showErrorMessage(message);
         }
         break;
       case MESSAGETYPE.Info:
-        languageClient !== undefined
-          ? languageClient.info(message)
-          : console.log(message);
+        console.log(message);
         if (
           (showDialog && notificationLevel === 'all') ||
           notificationLevel === 'errors warnings and infos'
@@ -622,9 +527,7 @@ export default class Utils {
         }
         break;
       case MESSAGETYPE.Warning:
-        languageClient !== undefined
-          ? languageClient.warn(message)
-          : console.log(message);
+        console.log(message);
         if (
           showDialog &&
           (notificationLevel === 'all' ||
@@ -635,12 +538,6 @@ export default class Utils {
         }
         break;
       case MESSAGETYPE.Log:
-        let time = Utils.timeAsHHMMSS(new Date());
-        languageClient !== undefined
-          ? languageClient.outputChannel.appendLine(
-              '[Log   + ' + time + '] ' + message
-            )
-          : console.log(message);
         if (showDialog && notificationLevel === 'all') {
           vscode.window.showInformationMessage(message);
         }
@@ -679,7 +576,8 @@ export default class Utils {
     folders.forEach((folder) => {
       if (fs.lstatSync(folder).isDirectory()) {
         fs.readdirSync(folder).forEach((file) => {
-          if (!Utils.ignoreResource(file)) {
+          if (true) {
+            //TODO: revisar !Utils.ignoreResource(file)
             const fn = path.join(folder, file);
             const ss = fs.statSync(fn);
             if (ss.isDirectory()) {
@@ -792,39 +690,25 @@ export default class Utils {
   /**
    * Deleta o servidor logado por ultimo do servers.json
    */
-  static deleteEnvironmentServer(envinronment: EnvironmentTreeItem) {
-    const allConfigs = Utils.getServersConfig();
+  // static deleteEnvironmentServer(envinronment: EnvironmentTreeItem) {
+  //   const allConfigs = Utils.getServersConfig();
 
-    if (allConfigs.configurations) {
-      const configs = allConfigs.configurations;
-      const id = envinronment.serverItemParent.id;
+  //   if (allConfigs.configurations) {
+  //     const configs = allConfigs.configurations;
+  //     const id = envinronment.serverItemParent.id;
 
-      configs.forEach((element) => {
-        if (element.id === id) {
-          const index = element.environments.indexOf(envinronment.label, 0);
+  //     configs.forEach((element) => {
+  //       if (element.id === id) {
+  //         const index = element.environments.indexOf(envinronment.label, 0);
 
-          if (index > -1) {
-            element.environments.splice(index, 1);
-            Utils.persistServersInfo(allConfigs);
-          }
+  //         if (index > -1) {
+  //           element.environments.splice(index, 1);
+  //           Utils.persistServersInfo(allConfigs);
+  //         }
 
-          return;
-        }
-      });
-    }
-  }
-}
-
-export function groupBy<T, K>(list: T[], getKey: (item: T) => K) {
-  const map = new Map<K, T[]>();
-  list.forEach((item) => {
-    const key = getKey(item);
-    const collection = map.get(key);
-    if (!collection) {
-      map.set(key, [item]);
-    } else {
-      collection.push(item);
-    }
-  });
-  return Array.from(map.values());
+  //         return;
+  //       }
+  //     });
+  //   }
+  // }
 }

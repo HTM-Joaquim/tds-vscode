@@ -1,8 +1,6 @@
 import * as React from "react";
 import { mergeProperties, i18n } from "../helper";
-import { applyPatchIcons } from "../helper/applyPatchIcons";
-import Alert from "@material-ui/lab/Alert";
-import { Button, ButtonGroup, Chip, Link, Popper, PropTypes, Tooltip, Typography } from "@material-ui/core";
+import { Chip, PropTypes, Tooltip } from "@material-ui/core";
 import { cellDefaultStyle } from "./applyPatchInterface";
 
 function fieldDef(
