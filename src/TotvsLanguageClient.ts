@@ -14,29 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 import {
-  CodeLens,
   commands,
-  DecorationOptions,
   DecorationRangeBehavior,
   DecorationRenderOptions,
   ExtensionContext,
-  Position,
-  ProviderResult,
-  Range,
-  TextDocument,
   ThemeColor,
   window,
   workspace,
-  TextEditorDecorationType,
-  FormattingOptions,
-  TextEdit,
 } from 'vscode';
 import {
-  CancellationToken,
   LanguageClientOptions,
   RevealOutputChannelOn,
   ServerOptions,
-  ProvideOnTypeFormattingEditsSignature,
 } from 'vscode-languageclient/lib/main';
 import * as vscode from 'vscode';
 
@@ -48,8 +37,6 @@ import {
   startLanguageServer,
   ITdsLanguageClient,
 } from '@totvs/tds-languageclient';
-import path = require('path');
-import { TDSConfiguration } from './configurations';
 
 let localize = nls.loadMessageBundle();
 
@@ -120,10 +107,6 @@ export function getLanguageClient(
     },
     rangeBehavior: DecorationRangeBehavior.ClosedClosed,
   };
-
-  let codeLensDecoration = window.createTextEditorDecorationType(
-    decorationOpts
-  );
 
   // Options to control the language client
   let clientOptions: LanguageClientOptions = {
@@ -230,68 +213,4 @@ function getClientConfig(context: ExtensionContext) {
   //config.update(kCacheDirPrefName, cacheDir, false /*global*/);
 
   return clientConfig;
-}
-
-function displayCodeLens(
-  document: TextDocument,
-  allCodeLens: CodeLens[],
-  codeLensDecoration: TextEditorDecorationType
-) {
-  for (let editor of window.visibleTextEditors) {
-    if (editor.document !== document) {
-      continue;
-    }
-
-    let opts: DecorationOptions[] = [];
-
-    for (let codeLens of allCodeLens) {
-      // FIXME: show a real warning or disable on-the-side code lens.
-      if (!codeLens.isResolved) {
-        console.error(
-          localize(
-            'tds.webview.totvsLanguegeClient.codeLensNotResolved',
-            'Code lens is not resolved'
-          )
-        );
-      }
-
-      // Default to after the content.
-      let position = codeLens.range.end;
-
-      // If multiline push to the end of the first line - works better for
-      // functions.
-      if (codeLens.range.start.line !== codeLens.range.end.line) {
-        position = new Position(codeLens.range.start.line, 1000000);
-      }
-
-      let range = new Range(position, position);
-      let title = codeLens.command === undefined ? '' : codeLens.command.title;
-      let opt: DecorationOptions = {
-        range: range,
-        renderOptions: { after: { contentText: ' ' + title + ' ' } },
-      };
-
-      opts.push(opt);
-    }
-
-    editor.setDecorations(codeLensDecoration, opts);
-  }
-}
-
-function provideOnTypeFormatting(
-  document: TextDocument,
-  position: Position,
-  ch: string,
-  options: FormattingOptions,
-  token: CancellationToken,
-  next: ProvideOnTypeFormattingEditsSignature
-): ProviderResult<TextEdit[]> {
-  const line: vscode.TextLine = document.lineAt(position.line - 1);
-  const text: string = line.text.toLowerCase();
-  const range = line.range;
-  const result: vscode.TextEdit[] = [];
-
-  result.push(vscode.TextEdit.replace(range, text));
-  result.push(vscode.TextEdit.insert(range.start, 'AAAAAAA'));
-  return result;
 }

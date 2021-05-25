@@ -49,7 +49,9 @@ export function generatePpo(filePath: string, options?: any): Promise<string> {
       return;
     }
 
-    const includes: string[] = getIncludes(server);
+    //@acandido
+    const includes: string[] =
+      server.includes || serverManager.getIncludes('', true);
     const compileOptions = getCompileOptions({
       filesUris: [vscode.Uri.file(filePath).toString()],
       includesUris: server.includes || [],
@@ -171,12 +173,13 @@ async function buildCode(
   let includes: Array<string> = [];
 
   if (hasAdvplsource) {
-    includes = serverManager.getIncludes(true, server) || [];
+    //@acandido
+    includes = server.includes;
     if (!includes.toString()) {
       return;
     }
   }
-
+  //@acandio - colocar caminho absoluto
   let includesUris: Array<string> = [];
   for (let idx = 0; idx < includes.length; idx++) {
     includesUris.push(vscode.Uri.file(includes[idx]).toString());
@@ -202,10 +205,10 @@ async function buildCode(
       );
     }
   });
-
+  //@acandido
   const compileOptions = getCompileOptions({
     filesUris: filesUris,
-    includesUris: serverManager.getIncludes(true, server) || [],
+    includesUris: server.includes || serverManager.getIncludes('', true) || [],
     ...options,
   });
 

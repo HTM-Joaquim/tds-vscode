@@ -33,10 +33,12 @@ import { ServerDebugger } from './serverDebugger';
 import { ServerMonitor } from './serverMonitor';
 import { serverJsonFileWatcher } from './serverJsonWatcher';
 import {
+  defaultServerConfiguration,
   IServerConfiguration,
   ServerConfiguration,
 } from './serverConfiguration';
 import Utils from './utils';
+import { FolderTreeItem } from './serverItemProvider';
 
 const localize = nls.loadMessageBundle();
 const _homedir: string = require('os').homedir();
@@ -71,10 +73,12 @@ export interface IServerManager {
 
   readonly onDidChange: vscode.Event<EventData>;
 
-  saveRpoTokenInfos(rpoToken: IRpoToken): void;
   deletePermissionsInfos(): void;
   savePermissionsInfos(infos: ICompileKey): void;
   getPermissionsInfos(): ICompileKey;
+  saveRpoTokenInfos(rpoToken: IRpoToken): void;
+  getRpoTokenInfos(): IRpoToken;
+  deleteRpoTokenInfos(): void;
   isSafeRPO(server: IServerDebugger): boolean;
   fireEvent(name: EventName, property: EventProperty, value: any): void;
   addServersDefinitionFile(file: vscode.Uri): void;
@@ -88,6 +92,8 @@ export interface IServerManager {
   ): IServerDebugger;
   getServerMonitor(debuggerServer: Partial<IServerDebugger>): IServerMonitor;
   readCompileKeyFile(path: string): IAuthorization;
+  getIncludes(folder: string, absolute: boolean): string[];
+  setIncludes(folder: string, includePath: string[]): void;
 }
 
 export declare type EventName = 'load' | 'change' | 'add' | 'remove';
@@ -110,6 +116,7 @@ interface _IServerDebugger {
   removeEnvironment(name: string): boolean;
   addEnvironment(name: string): boolean;
   generateWsl(url: string);
+  getAuthorizationToken(): string;
 }
 
 export interface IServerDebuggerAttributes {
@@ -148,6 +155,7 @@ class ServerManager implements IServerManager {
   private _currentServer: IServerDebugger;
   private _onDidChange: vscode.EventEmitter<EventData> = new vscode.EventEmitter<EventData>();
   private _enableEvents: boolean = true;
+  private _loadInProgress: boolean;
 
   public get enableEvents(): boolean {
     return this._enableEvents;
@@ -172,10 +180,20 @@ class ServerManager implements IServerManager {
         Utils.SERVER_DEFINITION_FILE
       )
     );
+  }
+  getRpoTokenInfos(): IRpoToken {
+    throw new Error('Method not implemented.');
+  }
+  deleteRpoTokenInfos(): void {
+    throw new Error('Method not implemented.');
+  }
 
-    // vscode.workspace.onDidChangeConfiguration(() => {
-    //   this.doLoad();
-    // });
+  getIncludes(folder: string, absolute: boolean): string[] {
+    return this.getConfigurations(folder).includes;
+  }
+
+  setIncludes(folder: string, includePath: string[]): void {
+    this.getConfigurations(folder).includes = includePath;
   }
 
   fireEvent(name: EventName, property: EventProperty, value: any) {
@@ -194,17 +212,17 @@ class ServerManager implements IServerManager {
 
   getPermissionsInfos(): ICompileKey {
     const config: IServerConfiguration = this.getConfigurations(this.userFile);
-    return config.getPermissionsInfos();
+    return config.getPermissions();
   }
 
   savePermissionsInfos(infos: ICompileKey) {
     const config: IServerConfiguration = this.getConfigurations(this.userFile);
-    config.savePermissionsInfos(infos);
+    config.savePermissions(infos);
   }
 
   saveRpoTokenInfos(infos: IRpoToken) {
     const config: IServerConfiguration = this.getConfigurations(this.userFile);
-    config.saveRpoTokenInfos(infos);
+    config.saveRpoToken(infos);
   }
 
   isIgnoreResource(file: string): boolean {
@@ -274,20 +292,24 @@ class ServerManager implements IServerManager {
    * Retorna todo o conteudo do servers.json
    */
   private doLoad(file: vscode.Uri): void {
-    const folder: string = path.dirname(file.fsPath);
+    if (!this._loadInProgress) {
+      this._loadInProgress = true;
+      const folder: string = path.dirname(file.fsPath);
 
-    const config: any = this.loadFromFile(file);
-    const serverConfig: IServerConfiguration = new ServerConfiguration(
-      this,
-      file.fsPath,
-      config
-    );
-    this._configMap.set(folder, serverConfig);
+      const config: any = this.loadFromFile(file);
+      const serverConfig: IServerConfiguration = new ServerConfiguration(
+        this,
+        file.fsPath,
+        config
+      );
+      this._configMap.set(folder, serverConfig);
+      this._loadInProgress = false;
 
-    this.fireEvent('load', 'servers', {
-      old: undefined,
-      new: this._configMap[folder],
-    });
+      this.fireEvent('load', 'servers', {
+        old: undefined,
+        new: this._configMap[folder],
+      });
+    }
   }
 
   private loadFromFile(file: vscode.Uri): any {
@@ -346,7 +368,9 @@ class ServerManager implements IServerManager {
    * @param JSONServerInfo
    */
   saveToFile(file: string, content: IServerConfiguration) {
-    fs.writeFileSync(file, JSON.stringify(content, null, '\t'));
+    if (!this._loadInProgress) {
+      fs.writeFileSync(file, JSON.stringify(content, null, '\t'));
+    }
   }
 
   /**
@@ -500,7 +524,10 @@ class ServerManager implements IServerManager {
 
   private initializeServerConfigFile(file: string) {
     try {
-      fs.writeFileSync(file, JSON.stringify(defaultConfiguration, null, '\t'));
+      fs.writeFileSync(
+        file,
+        JSON.stringify(defaultServerConfiguration(), null, '\t')
+      );
     } catch (err) {
       console.error(err);
     }
@@ -586,10 +613,3 @@ function processIgnoreList(
 }
 
 export const serverManager: IServerManager = new ServerManager();
-function defaultConfiguration(
-  defaultConfiguration: any,
-  arg1: null,
-  arg2: string
-): string | NodeJS.ArrayBufferView {
-  throw new Error('Function not implemented.');
-}

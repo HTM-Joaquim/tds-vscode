@@ -18,7 +18,8 @@ export function toggleAutocompleteBehavior() {
 }
 
 export function syncSettings() {
-  let includesList: string[] = serverManager.getIncludes(true);
+  //@acandido
+  let includesList: string[] = serverManager.getIncludes('', true);
   let includes: string = includesList.join(';');
 
   changeSettings({

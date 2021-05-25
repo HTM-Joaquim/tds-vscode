@@ -18,8 +18,10 @@ import {
   LSServerDebugger,
   ILSServerAttributes,
 } from '@totvs/tds-languageclient';
+import { IRpoToken } from './rpoToken';
 import { IServerConfiguration } from './serverConfiguration';
 import {
+  ICompileKey,
   IServerDebugger,
   IServerManager,
   serverManager,
@@ -127,5 +129,24 @@ export class ServerDebugger
     }
 
     return false;
+  }
+
+  getAuthorizationToken(): string {
+    const isSafeRPO: boolean = serverManager.isSafeRPO(this);
+    const permissionsInfos: IRpoToken | ICompileKey = isSafeRPO
+      ? serverManager.getRpoTokenInfos()
+      : serverManager.getPermissionsInfos();
+    let authorizationToken: string = '';
+
+    if (permissionsInfos) {
+      if (isSafeRPO) {
+        authorizationToken = (permissionsInfos as IRpoToken).token;
+      } else {
+        authorizationToken = (permissionsInfos as ICompileKey)
+          .authorizationToken;
+      }
+    }
+
+    return authorizationToken;
   }
 }

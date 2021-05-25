@@ -145,7 +145,7 @@ function setTemplatePath(path, currentPanel) {
 
 function templateApply(templateFile) {
   const server: IServerDebugger = serverManager.currentServer;
-  const includes: string[] = serverManager.getIncludes(true, server) || [];
+  const includes: string[] = server.includes;
   let includesUris: Array<string> = includes.map((include) => {
     return vscode.Uri.file(include).toString();
   });

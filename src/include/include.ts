@@ -32,17 +32,24 @@ export default function showInclude(
   context: vscode.ExtensionContext,
   target: FolderTreeItem | ServerTreeItem
 ) {
+  let includes: string[] = [];
+
   if (currentPanel) {
     currentPanel.reveal();
   } else {
     let title: string = localize('tds.webview.title', 'Include');
+    let folderStr: string;
 
     if (target.hasOwnProperty('folder')) {
-      const folder: FolderTreeItem = target as FolderTreeItem;
-      title = `${title}: ${folder.folder} (default)`;
+      const fti: FolderTreeItem = target as FolderTreeItem;
+      title = `${title}: ${fti.folder} (default)`;
+      includes = serverManager.getIncludes(fti.folder, false);
+      folderStr = fti.folder;
     } else {
-      const server: ServerTreeItem = target as ServerTreeItem;
-      title = `${title}: ${server.server.name}`;
+      const sti: ServerTreeItem = target as ServerTreeItem;
+      title = `${title}: ${sti.server.name}`;
+      includes = sti.server.includes;
+      folderStr = sti.parent.folder;
     }
 
     currentPanel = vscode.window.createWebviewPanel(
@@ -55,7 +62,11 @@ export default function showInclude(
       }
     );
 
-    currentPanel.webview.html = getWebViewContent(context, localizeHTML);
+    currentPanel.webview.html = getWebViewContent(
+      context,
+      localizeHTML,
+      folderStr
+    );
     currentPanel.onDidDispose(
       () => {
         currentPanel = undefined;
@@ -64,7 +75,6 @@ export default function showInclude(
       context.subscriptions
     );
 
-    const includes = serverManager.getIncludes(false);
     const includeString: string = includes.toString();
     if (includeString) {
       const aux = includeString.replace(/,/g, ';');
@@ -86,8 +96,16 @@ export default function showInclude(
             });
             break;
           case 'includeClose':
-            const includePath = message.include;
-            serverManager.setIncludePath(includePath);
+            const includePath: string[] = message.include;
+            if (target.hasOwnProperty('folder')) {
+              const fti: FolderTreeItem = target as FolderTreeItem;
+              serverManager.setIncludes(fti.folder, includePath);
+            } else {
+              const sti: ServerTreeItem = target as ServerTreeItem;
+              title = `${title}: ${sti.server.name}`;
+              sti.server.includes = includePath;
+            }
+
             if (currentPanel) {
               if (message.close) {
                 currentPanel.dispose();
@@ -102,7 +120,11 @@ export default function showInclude(
   }
 }
 
-function getWebViewContent(context: vscode.ExtensionContext, localizeHTML) {
+function getWebViewContent(
+  context: vscode.ExtensionContext,
+  localizeHTML,
+  folder: string
+) {
   const htmlOnDiskPath = vscode.Uri.file(
     path.join(context.extensionPath, 'src', 'include', 'include.html')
   );
@@ -119,5 +141,9 @@ function getWebViewContent(context: vscode.ExtensionContext, localizeHTML) {
 
   let runTemplate = compile(htmlContent);
 
-  return runTemplate({ css: cssContent, localize: localizeHTML });
+  return runTemplate({
+    css: cssContent,
+    localize: localizeHTML,
+    target: folder,
+  });
 }

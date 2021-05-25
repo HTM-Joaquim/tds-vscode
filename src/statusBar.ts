@@ -20,6 +20,7 @@ let saveLocationBarItem: vscode.StatusBarItem;
 let permissionStatusBarItem: vscode.StatusBarItem;
 let settingsStatusBarItem: vscode.StatusBarItem;
 let rpoTokenStatusBarItem: vscode.StatusBarItem;
+let clearRpoTokenStatusBarItem: vscode.StatusBarItem;
 
 const priorityTotvsStatusBarItem: number = 103;
 const priorityRpoTokenStatusBarItem: number = 102;
@@ -160,8 +161,19 @@ function initRpoTokenStatusBarItem(context: vscode.ExtensionContext) {
       }
     })
   );
+  clearRpoTokenStatusBarItem = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left,
+    priorityRpoTokenStatusBarItem
+  );
+  clearRpoTokenStatusBarItem.command = 'totvs-developer-studio.clearRpoToken';
+  clearRpoTokenStatusBarItem.text = '$(notifications-clear)';
+  clearRpoTokenStatusBarItem.tooltip = localize(
+    'tds.vscode.rpoToken.clear.tooltip',
+    'Clear RPO token'
+  );
 
   rpoTokenStatusBarItem.show();
+  clearRpoTokenStatusBarItem.show();
 }
 
 function updateRpoTokenStatusBarItem(rpoToken: IRpoToken): void {

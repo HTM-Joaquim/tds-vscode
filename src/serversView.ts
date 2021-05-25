@@ -33,8 +33,11 @@ import {
   IServerDebuggerAttributes,
   serverManager,
 } from './serverManager';
-import { BuildVersion, LS_CONNECTION_TYPE } from '@totvs/tds-languageclient';
-import { LSServerType } from '../../tds-languageclient/typings/src';
+import {
+  BuildVersion,
+  LS_CONNECTION_TYPE,
+  LSServerType,
+} from '@totvs/tds-languageclient';
 
 let localize = nls.loadMessageBundle();
 const compile = require('template-literal');
