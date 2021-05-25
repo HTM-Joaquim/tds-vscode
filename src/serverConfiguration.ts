@@ -2,7 +2,7 @@ import path = require('path');
 import { IRpoToken, noRpoToken } from './rpoToken';
 import { ICompileKey, IServerDebugger, IServerManager } from './serverManager';
 
-interface _IServerConfigurationAttributes {
+export interface IServerConfigurationAttributes {
   version: string;
   includes: string[];
   permissions: {
@@ -15,7 +15,7 @@ interface _IServerConfigurationAttributes {
   smartClientBin: string;
 }
 
-interface _IServerConfiguration {
+interface IServerConfigurationMethods {
   file: string;
   servers: IServerDebugger[];
 
@@ -32,10 +32,10 @@ interface _IServerConfiguration {
   getRpoToken(): IRpoToken;
 }
 
-export declare type IServerConfiguration = _IServerConfiguration &
-  _IServerConfigurationAttributes;
+export declare type IServerConfiguration = IServerConfigurationMethods &
+  IServerConfigurationAttributes;
 
-export function defaultServerConfiguration(): _IServerConfigurationAttributes {
+export function defaultServerConfiguration(): IServerConfigurationAttributes {
   return {
     version: '0.2.1',
     includes: [],
@@ -51,8 +51,6 @@ export function defaultServerConfiguration(): _IServerConfigurationAttributes {
 }
 
 export class ServerConfiguration implements IServerConfiguration {
-  private _includes: string[] = [];
-
   version: string;
   permissions: {
     authorizationtoken: any;
@@ -63,13 +61,14 @@ export class ServerConfiguration implements IServerConfiguration {
   rpoToken: IRpoToken;
   smartClientBin: string;
 
+  private _includes: string[] = [];
   private readonly manager: IServerManager;
   readonly file: string;
 
   constructor(
     manager: IServerManager,
     file: string,
-    attributes: _IServerConfigurationAttributes
+    attributes: IServerConfigurationAttributes
   ) {
     this.manager = manager;
     this.file = file;
@@ -89,7 +88,12 @@ export class ServerConfiguration implements IServerConfiguration {
   }
 
   doSave(): void {
-    this.manager.saveToFile(this.file, this);
+    const attSave: IServerConfigurationAttributes = defaultServerConfiguration();
+    Object.keys(attSave).forEach((key: string) => {
+      attSave[key] = this[key];
+    });
+
+    this.manager.saveToFile(this.file, attSave);
   }
 
   get servers(): IServerDebugger[] {

@@ -4,13 +4,12 @@ import * as path from 'path';
 import { EventData, serverManager, IServerDebugger } from './serverManager';
 
 const HOME_DIR: string = require('os').homedir();
-
-const FOLDER_CONTEXT = 'FolderTreeItem';
-const SERVER_CONTEXT = 'ServerTreeItem';
-const SERVER_CONTEXT_NOT_CONNECTED = 'ServerTreeItemNotConnected';
-const ENVIRONMENT_CONTEXT = 'EnvironmentTreeItem';
-const ENVIRONMENT_CONTEXT_NOT_CONNECT = 'ServerTreeItemNotConnected';
-const INCLUDE_CONTEXT = 'IncludeItemServer';
+const FOLDER_CONTEXT = 'folderTreeItem';
+const SERVER_CONTEXT = 'serverTreeItem';
+const SERVER_CONTEXT_NOT_CONNECTED = 'serverTreeItemNotConnected';
+const ENVIRONMENT_CONTEXT = 'environmentTreeItem';
+const ENVIRONMENT_CONTEXT_NOT_CONNECT = 'serverTreeItemNotConnected';
+const INCLUDE_CONTEXT = 'includeItemServer';
 
 export declare type ServerTreeItens =
   | FolderTreeItem

@@ -35,6 +35,7 @@ import { serverJsonFileWatcher } from './serverJsonWatcher';
 import {
   defaultServerConfiguration,
   IServerConfiguration,
+  IServerConfigurationAttributes,
   ServerConfiguration,
 } from './serverConfiguration';
 import Utils from './utils';
@@ -84,7 +85,7 @@ export interface IServerManager {
   addServersDefinitionFile(file: vscode.Uri): void;
   getConfigurations(folder: string): IServerConfiguration;
   isConnected(server: IServerDebugger): boolean;
-  saveToFile(file: string, content: IServerConfiguration): void;
+  saveToFile(file: string, content: IServerConfigurationAttributes): void;
   isIgnoreResource(file: string): boolean;
   getServerDebugger(
     folder: string,
@@ -296,7 +297,7 @@ class ServerManager implements IServerManager {
       this._loadInProgress = true;
       const folder: string = path.dirname(file.fsPath);
 
-      const config: any = this.loadFromFile(file);
+      const config: IServerConfigurationAttributes = this.loadFromFile(file);
       const serverConfig: IServerConfiguration = new ServerConfiguration(
         this,
         file.fsPath,
@@ -312,8 +313,8 @@ class ServerManager implements IServerManager {
     }
   }
 
-  private loadFromFile(file: vscode.Uri): any {
-    let config: any = {};
+  private loadFromFile(file: vscode.Uri): IServerConfigurationAttributes {
+    let config: any = undefined;
 
     if (!fs.existsSync(file.fsPath)) {
       this.initializeServerConfigFile(file.fsPath);
@@ -365,9 +366,10 @@ class ServerManager implements IServerManager {
 
   /**
    * Grava no arquivo servers.json uma nova configuracao de servers
-   * @param JSONServerInfo
+   * @param file - target file
+   * @param content - attributes to save
    */
-  saveToFile(file: string, content: IServerConfiguration) {
+  saveToFile(file: string, content: IServerConfigurationAttributes) {
     if (!this._loadInProgress) {
       fs.writeFileSync(file, JSON.stringify(content, null, '\t'));
     }

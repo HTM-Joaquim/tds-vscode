@@ -7,7 +7,7 @@ import * as nls from 'vscode-nls';
 import { serverManager } from '../serverManager';
 import { FolderTreeItem, ServerTreeItem } from '../serverItemProvider';
 
-let localize = nls.loadMessageBundle();
+const localize = nls.loadMessageBundle();
 const compile = require('template-literal');
 
 const localizeHTML = {
@@ -106,11 +106,10 @@ export default function showInclude(
               sti.server.includes = includePath;
             }
 
-            if (currentPanel) {
-              if (message.close) {
-                currentPanel.dispose();
-              }
+            if (currentPanel && message.close) {
+              currentPanel.dispose();
             }
+
             break;
         }
       },
