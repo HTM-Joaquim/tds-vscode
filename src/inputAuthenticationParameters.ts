@@ -26,8 +26,9 @@ export async function inputAuthenticationParameters(
   let AUTH_PASSWORD_STEP = 2;
 
   //@acandido
-  const serversConfig = serverManager.getConfigurations(serverManager.userFile)
-    .servers;
+  const serversConfig = serverManager
+    .getConfigurations(serverManager.userFile)
+    .getServers();
 
   interface State {
     title: string;

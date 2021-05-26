@@ -1,4 +1,5 @@
 import path = require('path');
+import { noKeyCompile } from './compileKey/compileKey';
 import { IRpoToken, noRpoToken } from './rpoToken';
 import { ICompileKey, IServerDebugger, IServerManager } from './serverManager';
 
@@ -6,9 +7,9 @@ export interface IServerConfigurationAttributes {
   version: string;
   includes: string[];
   permissions: {
-    authorizationtoken: any;
+    authorizationtoken: ICompileKey;
   };
-  configurations: any[];
+  configurations: IServerDebugger[];
   savedTokens: string[];
   lastConnectedServer: string;
   rpoToken: IRpoToken;
@@ -16,8 +17,8 @@ export interface IServerConfigurationAttributes {
 }
 
 interface IServerConfigurationMethods {
-  file: string;
-  servers: IServerDebugger[];
+  //file: string;
+  getServers(): IServerDebugger[];
 
   addServer(serverItem: IServerDebugger): boolean;
   deleteServer(serverItem: IServerDebugger): boolean;
@@ -40,7 +41,7 @@ export function defaultServerConfiguration(): IServerConfigurationAttributes {
     version: '0.2.1',
     includes: [],
     permissions: {
-      authorizationtoken: '',
+      authorizationtoken: noKeyCompile(),
     },
     configurations: [],
     savedTokens: [],
@@ -53,24 +54,24 @@ export function defaultServerConfiguration(): IServerConfigurationAttributes {
 export class ServerConfiguration implements IServerConfiguration {
   version: string;
   permissions: {
-    authorizationtoken: any;
+    authorizationtoken: ICompileKey;
   };
-  configurations: any[];
+  configurations: IServerDebugger[];
   savedTokens: string[];
   lastConnectedServer: string;
   rpoToken: IRpoToken;
   smartClientBin: string;
 
   private _includes: string[] = [];
-  private readonly manager: IServerManager;
-  readonly file: string;
+  private readonly parent: IServerManager;
+  private readonly file: string;
 
   constructor(
     manager: IServerManager,
     file: string,
     attributes: IServerConfigurationAttributes
   ) {
-    this.manager = manager;
+    this.parent = manager;
     this.file = file;
 
     Object.assign(this, defaultServerConfiguration && attributes);
@@ -88,15 +89,10 @@ export class ServerConfiguration implements IServerConfiguration {
   }
 
   doSave(): void {
-    const attSave: IServerConfigurationAttributes = defaultServerConfiguration();
-    Object.keys(attSave).forEach((key: string) => {
-      attSave[key] = this[key];
-    });
-
-    this.manager.saveToFile(this.file, attSave);
+    this.parent.saveToFile(this.file, this);
   }
 
-  get servers(): IServerDebugger[] {
+  getServers(): IServerDebugger[] {
     return this.configurations;
   }
 
@@ -104,12 +100,12 @@ export class ServerConfiguration implements IServerConfiguration {
     let result: boolean = false;
 
     if (
-      !this.servers.some((element: IServerDebugger) => {
+      !this.getServers().some((element: IServerDebugger) => {
         return element.name == server.name;
       })
     ) {
-      this.servers.push(server);
-      this.manager.fireEvent('add', 'servers', {
+      this.getServers().push(server);
+      this.parent.fireEvent('add', 'servers', {
         old: undefined,
         new: server,
       });
@@ -121,10 +117,10 @@ export class ServerConfiguration implements IServerConfiguration {
   }
 
   deleteServer(server: IServerDebugger): boolean {
-    return this.servers.some((element: IServerDebugger, index: number) => {
+    return this.getServers().some((element: IServerDebugger, index: number) => {
       if (element.id === server.id) {
-        const elements: IServerDebugger[] = this.servers.splice(index, 1);
-        this.manager.fireEvent('remove', 'servers', { old: elements, new: [] });
+        const elements: IServerDebugger[] = this.getServers().splice(index, 1);
+        this.parent.fireEvent('remove', 'servers', { old: elements, new: [] });
         this.doSave();
         return true;
       }
@@ -132,15 +128,14 @@ export class ServerConfiguration implements IServerConfiguration {
   }
 
   renameServer(server: IServerDebugger, newName: string): boolean {
-    return this.servers.some((element: IServerDebugger, index: number) => {
+    return this.getServers().some((element: IServerDebugger, index: number) => {
       if (element.id === server.id) {
-        const oldValue: string = this.servers[index].name;
+        const oldValue: string = this.getServers()[index].name;
+        this.getServers()[index].name = newName;
 
-        this.servers[index].name = newName;
-
-        this.manager.fireEvent('change', 'servers', {
+        this.parent.fireEvent('change', 'servers', {
           old: oldValue,
-          new: this.servers[index],
+          new: this.getServers()[index],
         });
         this.doSave();
 
@@ -161,7 +156,7 @@ export class ServerConfiguration implements IServerConfiguration {
     const oldValue: ICompileKey = this.permissions.authorizationtoken;
     this.permissions.authorizationtoken = infos;
 
-    this.manager.fireEvent('change', 'compileKey', {
+    this.parent.fireEvent('change', 'compileKey', {
       old: oldValue,
       new: infos,
     });
@@ -181,6 +176,6 @@ export class ServerConfiguration implements IServerConfiguration {
     this.rpoToken = infos;
     this.doSave();
 
-    this.manager.fireEvent('change', 'rpoToken', { old: oldInfos, new: infos });
+    this.parent.fireEvent('change', 'rpoToken', { old: oldInfos, new: infos });
   }
 }

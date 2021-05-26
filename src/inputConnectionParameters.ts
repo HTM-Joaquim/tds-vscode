@@ -58,8 +58,9 @@ export async function inputConnectionParameters(
   let CONNECT_ENVIRONMENT_STEP = 2;
 
   //@acandido
-  const serversConfig = serverManager.getConfigurations(serverManager.userFile)
-    .servers;
+  const serversConfig = serverManager
+    .getConfigurations(serverManager.userFile)
+    .getServers();
 
   const servers: QuickPickItem[] = serversConfig.map((element) => ({
     detail: element.id,

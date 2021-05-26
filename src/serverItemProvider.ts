@@ -138,7 +138,8 @@ class ServerTreeItemProvider
 
     serverManager
       .getConfigurations(parent.folder)
-      .servers.forEach((element: IServerDebugger) => {
+      .getServers()
+      .forEach((element: IServerDebugger) => {
         const sti: ServerTreeItem = new ServerTreeItem(parent, element, {
           command: '',
           title: '',

@@ -112,7 +112,7 @@ export interface EventData {
   value: any;
 }
 
-interface _IServerDebugger {
+interface IServerDebuggerMethods {
   isConnected(): boolean;
   removeEnvironment(name: string): boolean;
   addEnvironment(name: string): boolean;
@@ -136,17 +136,17 @@ export interface IGetUsersData {
   users: IUserData[];
 }
 
-interface _IServerMonitor {
+interface IServerMonitorMethods {
   getUsersData(): Promise<IGetUsersData>;
 }
 
 export declare type IServerDebugger = TLSServerDebugger &
   IServerDebuggerAttributes &
-  _IServerDebugger;
+  IServerDebuggerMethods;
 
 export declare type IServerMonitor = TLSServerMonitor &
   IServerMonitorAttributes &
-  _IServerMonitor;
+  IServerMonitorMethods;
 
 class ServerManager implements IServerManager {
   private _configMap: Map<string, IServerConfiguration> = new Map<
@@ -175,6 +175,7 @@ class ServerManager implements IServerManager {
 
   constructor() {
     this.userFile = path.join(globalFolder, Utils.SERVER_DEFINITION_FILE);
+
     this.addServersDefinitionFile(
       vscode.Uri.joinPath(
         vscode.Uri.parse('file:///' + globalFolder),
@@ -367,12 +368,26 @@ class ServerManager implements IServerManager {
   /**
    * Grava no arquivo servers.json uma nova configuracao de servers
    * @param file - target file
-   * @param content - attributes to save
+   * @param attributes - json format attributes to save
    */
-  saveToFile(file: string, content: IServerConfigurationAttributes) {
+  saveToFile(file: string, attributes: IServerConfigurationAttributes) {
     if (!this._loadInProgress) {
-      fs.writeFileSync(file, JSON.stringify(content, null, '\t'));
+      const toSave: string[] = this.getPropsToSave(attributes);
+      const content: string = JSON.stringify(attributes, toSave, '\t');
+      fs.writeFileSync(file, content.replace('"_', '"'));
     }
+  }
+
+  private getPropsToSave(attributes: any): string[] {
+    const result: string[] = [];
+
+    Object.keys(attributes).forEach((key: string) => {
+      if (key !== 'parent' && key !== 'file' && !key.startsWith('ro_')) {
+        result.push(key);
+      }
+    });
+
+    return result;
   }
 
   /**

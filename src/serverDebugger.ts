@@ -20,12 +20,7 @@ import {
 } from '@totvs/tds-languageclient';
 import { IRpoToken } from './rpoToken';
 import { IServerConfiguration } from './serverConfiguration';
-import {
-  ICompileKey,
-  IServerDebugger,
-  IServerManager,
-  serverManager,
-} from './serverManager';
+import { ICompileKey, IServerDebugger, serverManager } from './serverManager';
 
 export class ServerDebugger
   extends LSServerDebugger
@@ -68,6 +63,7 @@ export class ServerDebugger
   public get includes(): string[] {
     return this._includes;
   }
+
   public set includes(value: string[]) {
     this._includes = value;
   }

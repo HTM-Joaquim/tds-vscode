@@ -293,3 +293,16 @@ function getWebViewContent(context: vscode.ExtensionContext, localizeHTML) {
 
   return runTemplate({ css: cssContent, localize: localizeHTML });
 }
+
+export function noKeyCompile(): ICompileKey {
+  return {
+    path: '',
+    machineId: '',
+    issued: '',
+    expire: '',
+    buildType: '',
+    tokenKey: '',
+    authorizationToken: '',
+    userId: '',
+  };
+}
