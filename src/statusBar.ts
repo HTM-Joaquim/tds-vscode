@@ -6,7 +6,6 @@ import {
   EventData,
   ICompileKey,
   IServerDebugger,
-  IServerManager,
   serverManager,
 } from './serverManager';
 
@@ -16,7 +15,6 @@ const localize = nls.config({
 })();
 
 let currentServerBarItem: vscode.StatusBarItem;
-let saveLocationBarItem: vscode.StatusBarItem;
 let permissionStatusBarItem: vscode.StatusBarItem;
 let settingsStatusBarItem: vscode.StatusBarItem;
 let rpoTokenStatusBarItem: vscode.StatusBarItem;
@@ -230,7 +228,7 @@ function buildTooltipRpoToken(
     result += `Name: ${rpoToken.body.name}\n`;
     result += `Subject: ${rpoToken.body.sub}\n`;
     result += `Auth: ${rpoToken.body.auth}\n`;
-    result += `Validate: ${rpoToken.body.exp.toLocaleDateString()} at ${rpoToken.body.iat.toLocaleDateString()}\n`;
+    result += `Validate: ${rpoToken.body.exp} at ${rpoToken.body.iat}\n`;
     result += `Emitter: ${rpoToken.body.iss}`;
   }
 

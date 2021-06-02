@@ -59,7 +59,7 @@ export async function inputConnectionParameters(
 
   //@acandido
   const serversConfig = serverManager
-    .getConfigurations(serverManager.userFile)
+    .getConfigurations(serverManager.GLOBAL_FOLDER)
     .getServers();
 
   const servers: QuickPickItem[] = serversConfig.map((element) => ({

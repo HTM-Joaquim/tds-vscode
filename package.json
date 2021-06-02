@@ -75,8 +75,8 @@
     "@material-ui/lab": "^4.0.0-alpha.56",
     "@totvs/prettier-plugin-4gl": "^0.1.2",
     "@totvs/prettier-plugin-advpl": "^0.1.2",
-    "@totvs/tds-da": "^1.1.22",
     "@totvs/tds-languageclient": "0.1.1",
+    "@totvs/tds-da": "^1.1.23",
     "@types/node": "^14.14.12",
     "@types/react": "^16.9.50",
     "@types/vscode": "^1.52.0",
@@ -124,7 +124,8 @@
     "style-loader": "^1.2.1",
     "terser-webpack-plugin": "^4.2.2",
     "ts-loader": "^8.0.4",
-    "vsce": "^1.81.0",
+    "tslint": "^6.1.2",
+    "vsce": "^1.88.0",
     "vscode-nls-dev": "^3.3.2",
     "vscode-test": "^1.4.1",
     "webpack": "^4.44.2",
@@ -178,6 +179,7 @@
     "onCommand:totvs-developer-studio.delete",
     "onCommand:totvs-developer-studio.delete.environment",
     "onCommand:totvs-developer-studio.patchGenerate.fromRPO",
+    "onCommand:totvs-developer-studio.patchGenerate.byDifference",
     "onCommand:totvs-developer-studio.patchGenerate.fromFolder",
     "onCommand:totvs-developer-studio.patchApply",
     "onCommand:totvs-developer-studio.patchApply.fromFile",
@@ -744,6 +746,11 @@
       {
         "command": "totvs-developer-studio.patchGenerate.fromFolder",
         "title": "%tds.package.patchGenerate.fromFolder%",
+        "category": "TOTVS"
+      },
+      {
+        "command": "totvs-developer-studio.patchGenerate.byDifference",
+        "title": "%tds.package.patchGenerate.byDifference%",
         "category": "TOTVS"
       },
       {
@@ -1396,8 +1403,22 @@
         },
         {
           "command": "totvs-developer-studio.open-loadrpoinfo-view",
-          "when": "view == totvs_server && viewItem == serverTreeItem",
+          "when": "view == totvs_server && viewItem == serverTreeItem"
+        },
+        {
+          "command": "totvs-developer-studio.patchGenerate.byDifference",
+          "when": "view == totvs_server && viewItem == serverItem",
+          "group": "CtotvsPatch@2"
+        },
+        {
+          "command": "totvs-developer-studio.patchApply",
+          "when": "view == totvs_server && viewItem == serverItem",
           "group": "CtotvsPatch@3"
+        },
+        {
+          "command": "totvs-developer-studio.open-loadrpoinfo-view",
+          "when": "view == totvs_server && viewItem == serverItem",
+          "group": "CtotvsPatch@4"
         },
         {
           "command": "totvs-developer-studio.inspectorObjects",

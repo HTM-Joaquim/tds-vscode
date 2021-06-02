@@ -23,7 +23,7 @@ let applyPathLoader: ApplyPatchLoader = undefined;
 
 export function openApplyPatchView(
   context: vscode.ExtensionContext,
-  args: any
+  args?: any
 ) {
   const server: IServerDebugger = serverManager.currentServer;
 

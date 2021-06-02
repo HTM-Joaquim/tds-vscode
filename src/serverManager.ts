@@ -39,7 +39,7 @@ import {
   ServerConfiguration,
 } from './serverConfiguration';
 import Utils from './utils';
-import { FolderTreeItem } from './serverItemProvider';
+import { LS_ERROR_CODES, LS_MESSAGE_TYPE } from '../../tds-languageclient/typings/src';
 
 const localize = nls.loadMessageBundle();
 const _homedir: string = require('os').homedir();
@@ -65,7 +65,7 @@ export interface IAuthorization {
 }
 
 export interface IServerManager {
-  userFile: string;
+  GLOBAL_FOLDER: string;
   enableEvents: boolean;
   folders: string[];
   //servers: Array<IServerDebugger>;
@@ -149,12 +149,15 @@ export declare type IServerMonitor = TLSServerMonitor &
   IServerMonitorMethods;
 
 class ServerManager implements IServerManager {
+  GLOBAL_FOLDER = path.join(_homedir, '.totvsls');
+
   private _configMap: Map<string, IServerConfiguration> = new Map<
     string,
     IServerConfiguration
   >();
   private _currentServer: IServerDebugger;
-  private _onDidChange: vscode.EventEmitter<EventData> = new vscode.EventEmitter<EventData>();
+  private _onDidChange: vscode.EventEmitter<EventData> =
+    new vscode.EventEmitter<EventData>();
   private _enableEvents: boolean = true;
   private _loadInProgress: boolean;
 
@@ -171,10 +174,10 @@ class ServerManager implements IServerManager {
   }
 
   readonly onDidChange: vscode.Event<EventData> = this._onDidChange.event;
-  readonly userFile: string;
+  //readonly userFile: string;
 
   constructor() {
-    this.userFile = path.join(globalFolder, Utils.SERVER_DEFINITION_FILE);
+    //this.userFile = path.join(globalFolder, Utils.SERVER_DEFINITION_FILE);
 
     this.addServersDefinitionFile(
       vscode.Uri.joinPath(
@@ -213,17 +216,17 @@ class ServerManager implements IServerManager {
   }
 
   getPermissionsInfos(): ICompileKey {
-    const config: IServerConfiguration = this.getConfigurations(this.userFile);
+    const config: IServerConfiguration = this.getConfigurations(globalFolder);
     return config.getPermissions();
   }
 
   savePermissionsInfos(infos: ICompileKey) {
-    const config: IServerConfiguration = this.getConfigurations(this.userFile);
+    const config: IServerConfiguration = this.getConfigurations(globalFolder);
     config.savePermissions(infos);
   }
 
   saveRpoTokenInfos(infos: IRpoToken) {
-    const config: IServerConfiguration = this.getConfigurations(this.userFile);
+    const config: IServerConfiguration = this.getConfigurations(globalFolder);
     config.saveRpoToken(infos);
   }
 
@@ -451,6 +454,34 @@ class ServerManager implements IServerManager {
   }
 
   /**
+   * Cria indicação de erro na carga
+   */
+  private createServerError(
+    folder: string,
+    serverName: string,
+    error: any
+  ): IServerDebugger {
+    const server: IServerDebugger = this.createServerDebugger(
+      folder,
+      null,
+      LSServerType.LS_SERVER_TYPE.UNDEFINED,
+      serverName,
+      0,
+      '',
+      '',
+      false,
+      []
+    );
+    server.lastError = {
+      level: LS_MESSAGE_TYPE.Error,
+      code: LS_ERROR_CODES.InvalidParams,
+      subcode: 0,
+      message: error.message,
+      data: error,
+    };
+    return server;
+  }
+  /**
    * Cria uma nova configuracao de servidor debugger
    */
   private createServerMonitor(
@@ -484,7 +515,8 @@ class ServerManager implements IServerManager {
     debuggerServer: Partial<IServerDebuggerAttributes>,
     load: boolean = false
   ): IServerDebugger {
-    const target: ILSServerAttributes = (debuggerServer as unknown) as ILSServerAttributes;
+    const target: ILSServerAttributes =
+      debuggerServer as unknown as ILSServerAttributes;
     let server: IServerDebugger = undefined;
 
     if (!load) {
@@ -497,17 +529,21 @@ class ServerManager implements IServerManager {
     }
 
     if (!server) {
-      server = this.createServerDebugger(
-        folder,
-        target.id,
-        target.type,
-        target.name,
-        target.port,
-        target.address,
-        target.build,
-        target.secure,
-        debuggerServer.includes
-      );
+      try {
+        server = this.createServerDebugger(
+          folder,
+          target.id,
+          target.type,
+          target.name,
+          target.port,
+          target.address,
+          target.build,
+          target.secure,
+          debuggerServer.includes
+        );
+      } catch (error) {
+        server = this.createServerError(folder, target.name, error);
+      }
     }
 
     return server;
