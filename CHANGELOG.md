@@ -1,6 +1,6 @@
 # Changelog
 
-# Versão [1.2.next]
+# Versão [1.2.3]
 
 ## Geração de pacote de atualização (_patch_) por diferença
 
@@ -13,8 +13,6 @@
 ### Melhoria
 
 - TokenRPO: implementado comando para remoção de token aplicado, via opção na barra de status ou via _api_ `clearRPOToken`.
-
-# Versão [1.2.3]
 
 ## Depuração/execução: não salva o atributo 'lastProgramExecuted'
 
