@@ -75,8 +75,8 @@
     "@material-ui/lab": "^4.0.0-alpha.56",
     "@totvs/prettier-plugin-4gl": "^0.1.2",
     "@totvs/prettier-plugin-advpl": "^0.1.2",
-    "@totvs/tds-languageclient": "0.1.1",
     "@totvs/tds-da": "^1.1.23",
+    "@totvs/tds-languageclient": "file:../tds-languageclient",
     "@types/node": "^14.14.12",
     "@types/react": "^16.9.50",
     "@types/vscode": "^1.52.0",
@@ -850,6 +850,11 @@
           "light": "resources/light/rpolog.png",
           "dark": "resources/dark/rpolog.png"
         }
+      },
+      {
+        "command": "totvs-developer-studio.togleVisibleFolder",
+        "title": "togleVisibleFolder",
+        "category": "TOTVS"
       }
     ],
     "keybindings": [
@@ -1491,6 +1496,16 @@
           "command": "tds-monitor.open-monitor-view",
           "when": "view == totvs_server",
           "group": "navigation"
+        },
+        {
+          "command": "totvs-developer-studio.togleVisibleFolder",
+          "when": "view == totvs_server",
+          "group": "inline"
+        },
+        {
+          "command": "totvs-developer-studio.togleVisibleFolder",
+          "when": "view == totvs_server",
+          "group": "context"
         }
       ],
       "commandPalette": [
@@ -1502,51 +1517,51 @@
         },
         {
           "command": "totvs-developer-studio.patchGenerate.fromFolder",
-          "when": "1 == 0"
+          "when": "false"
         },
         {
           "command": "totvs-developer-studio.patchValidate.fromFile",
-          "when": "1 == 0"
+          "when": "false"
         },
         {
           "command": "totvs-developer-studio.selectenv",
-          "when": "1 == 0"
+          "when": "false"
         },
         {
           "command": "totvs-developer-studio.disconnect",
-          "when": "1 == 0"
+          "when": "false"
         },
         {
           "command": "totvs-developer-studio.connect",
-          "when": "1 == 0"
+          "when": "false"
         },
         {
           "command": "totvs-developer-studio.reconnect",
-          "when": "1 == 0"
+          "when": "false"
         },
         {
           "command": "totvs-developer-studio.rename",
-          "when": "1 == 0"
+          "when": "false"
         },
         {
           "command": "totvs-developer-studio.getProgramName",
-          "when": "1 == 0"
+          "when": "false"
         },
         {
           "command": "totvs-developer-studio.getProgramArguments",
-          "when": "1 == 0"
+          "when": "false"
         },
         {
           "command": "totvs-developer-studio.delete.file.fromRPO",
-          "when": "1 == 0"
+          "when": "false"
         },
         {
           "command": "totvs-developer-studio.getDAP",
-          "when": "1 == 0"
+          "when": "false"
         },
         {
           "command": "totvs-developer-studio.welcomePage",
-          "when": "1 == 0"
+          "when": "false"
         },
         {
           "command": "totvs-developer-studio.tdsreplay.webview.timeLine",

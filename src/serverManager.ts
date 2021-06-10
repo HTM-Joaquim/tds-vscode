@@ -39,7 +39,14 @@ import {
   ServerConfiguration,
 } from './serverConfiguration';
 import Utils from './utils';
-import { LS_ERROR_CODES, LS_MESSAGE_TYPE } from '../../tds-languageclient/typings/src';
+import { LS_ERROR_CODES, LS_MESSAGE_TYPE } from '@totvs/tds-languageclient';
+import {
+  EventData,
+  EventGroup,
+  eventManager,
+  EventName,
+  EventProperty,
+} from './event';
 
 const localize = nls.loadMessageBundle();
 const _homedir: string = require('os').homedir();
@@ -68,11 +75,7 @@ export interface IServerManager {
   GLOBAL_FOLDER: string;
   enableEvents: boolean;
   folders: string[];
-  //servers: Array<IServerDebugger>;
   currentServer: IServerDebugger;
-  //smartClientBin: string;
-
-  readonly onDidChange: vscode.Event<EventData>;
 
   deletePermissionsInfos(): void;
   savePermissionsInfos(infos: ICompileKey): void;
@@ -81,7 +84,6 @@ export interface IServerManager {
   getRpoTokenInfos(): IRpoToken;
   deleteRpoTokenInfos(): void;
   isSafeRPO(server: IServerDebugger): boolean;
-  fireEvent(name: EventName, property: EventProperty, value: any): void;
   addServersDefinitionFile(file: vscode.Uri): void;
   getConfigurations(folder: string): IServerConfiguration;
   isConnected(server: IServerDebugger): boolean;
@@ -95,21 +97,6 @@ export interface IServerManager {
   readCompileKeyFile(path: string): IAuthorization;
   getIncludes(folder: string, absolute: boolean): string[];
   setIncludes(folder: string, includePath: string[]): void;
-}
-
-export declare type EventName = 'load' | 'change' | 'add' | 'remove';
-export declare type EventProperty =
-  | 'servers'
-  | 'currentServer'
-  | 'rpoToken'
-  | 'compileKey'
-  | 'includePath'
-  | 'smartClientBin';
-
-export interface EventData {
-  name: EventName;
-  property: EventProperty;
-  value: any;
 }
 
 interface IServerDebuggerMethods {
@@ -156,8 +143,6 @@ class ServerManager implements IServerManager {
     IServerConfiguration
   >();
   private _currentServer: IServerDebugger;
-  private _onDidChange: vscode.EventEmitter<EventData> =
-    new vscode.EventEmitter<EventData>();
   private _enableEvents: boolean = true;
   private _loadInProgress: boolean;
 
@@ -169,16 +154,13 @@ class ServerManager implements IServerManager {
     this._enableEvents = value;
 
     if (value) {
-      this.fireEvent('load', 'servers', undefined);
+      this.fireEvent(EventName.load, EventProperty.servers, undefined);
     }
   }
 
-  readonly onDidChange: vscode.Event<EventData> = this._onDidChange.event;
-  //readonly userFile: string;
+  readonly onDidChange: vscode.Event<EventData> = eventManager.onDidChange;
 
   constructor() {
-    //this.userFile = path.join(globalFolder, Utils.SERVER_DEFINITION_FILE);
-
     this.addServersDefinitionFile(
       vscode.Uri.joinPath(
         vscode.Uri.parse('file:///' + globalFolder),
@@ -203,11 +185,7 @@ class ServerManager implements IServerManager {
 
   fireEvent(name: EventName, property: EventProperty, value: any) {
     if (this._enableEvents) {
-      this._onDidChange.fire({
-        name: name,
-        property: property,
-        value: value,
-      });
+      eventManager.fireEvent(EventGroup.manager, name, property, value);
     }
   }
 
@@ -264,8 +242,10 @@ class ServerManager implements IServerManager {
 
       this._currentServer = value;
 
-      //this.doSave();
-      this.fireEvent('change', 'currentServer', { old: oldValue, new: value });
+      this.fireEvent(EventName.change, EventProperty.currentServer, {
+        old: oldValue,
+        new: value,
+      });
     }
   }
 
@@ -310,7 +290,7 @@ class ServerManager implements IServerManager {
       this._configMap.set(folder, serverConfig);
       this._loadInProgress = false;
 
-      this.fireEvent('load', 'servers', {
+      this.fireEvent(EventName.load, EventProperty.servers, {
         old: undefined,
         new: this._configMap[folder],
       });
@@ -375,9 +355,24 @@ class ServerManager implements IServerManager {
    */
   saveToFile(file: string, attributes: IServerConfigurationAttributes) {
     if (!this._loadInProgress) {
-      const toSave: string[] = this.getPropsToSave(attributes);
-      const content: string = JSON.stringify(attributes, toSave, '\t');
-      fs.writeFileSync(file, content.replace('"_', '"'));
+      vscode.window.withProgress(
+        {
+          location: { viewId: 'totvs_server' }, //vscode.ProgressLocation.Notification,
+          title: `Saving ${file} setting`,
+          cancellable: false,
+        },
+        //(progress, token) => {
+        () => {
+          return new Promise<void>((resolve) => {
+            const toSave: string[] = this.getPropsToSave(attributes);
+            let content: string = JSON.stringify(attributes, toSave, '\t');
+            content = content.replace(/"_/g, '"') ;
+            fs.writeFileSync(file, content);
+
+            resolve();
+          });
+        }
+      );
     }
   }
 
@@ -386,6 +381,13 @@ class ServerManager implements IServerManager {
 
     Object.keys(attributes).forEach((key: string) => {
       if (key !== 'parent' && key !== 'file' && !key.startsWith('ro_')) {
+        if (key === 'configurations') {
+          if (attributes[key].length > 0) {
+            const subProps: string[] = this.getPropsToSave(attributes[key][0]);
+            result.push(...subProps);
+          }
+        }
+
         result.push(key);
       }
     });
@@ -590,7 +592,7 @@ class ServerManager implements IServerManager {
   //   const oldValue: string = this._configMap[globalFolder].smartClientBin;
   //   this._configMap[globalFolder].smartClientBin = smartClient;
 
-  //   this.fireEvent('change', 'smartClientBin', {
+  //   this.fireEvent(EventSenderName.serverManager, 'change', 'smartClientBin', {
   //     old: oldValue,
   //     new: this._configMap[globalFolder].smartClientBin,
   //   });

@@ -18,14 +18,20 @@ import {
   LSServerDebugger,
   ILSServerAttributes,
 } from '@totvs/tds-languageclient';
+import { EventGroup, eventManager, EventName, EventProperty } from './event';
 import { IRpoToken } from './rpoToken';
 import { IServerConfiguration } from './serverConfiguration';
-import { ICompileKey, IServerDebugger, serverManager } from './serverManager';
+import {
+  ICompileKey,
+  IServerDebugger,
+  serverManager,
+} from './serverManager';
 
 export class ServerDebugger
   extends LSServerDebugger
-  implements IServerDebugger {
-  private _includes: string[];
+  implements IServerDebugger
+{
+  private _includes: string[] = [];
   private _environments: string[] = [];
   private _username: string = '';
   private _smartclientBin: string = '';
@@ -65,7 +71,14 @@ export class ServerDebugger
   }
 
   public set includes(value: string[]) {
-    this._includes = value;
+    if (this._includes.toString() !== value.toString()) {
+      this._includes = value;
+      this.notifyNeedSave();
+    }
+  }
+
+  notifyNeedSave() {
+    eventManager.fireEvent(EventGroup.server, EventName.needSave, EventProperty.all, this);
   }
 
   public constructor(
@@ -109,6 +122,7 @@ export class ServerDebugger
     return this._environments.some((value: string, index: number) => {
       if (value.toLowerCase() === name.toLowerCase()) {
         this._environments.splice(index, 1);
+        this.notifyNeedSave();
         return true;
       }
     });
@@ -121,6 +135,7 @@ export class ServerDebugger
       })
     ) {
       this._environments.push(name);
+      this.notifyNeedSave();
       return true;
     }
 

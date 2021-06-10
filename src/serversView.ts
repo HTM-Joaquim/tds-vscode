@@ -14,12 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 import * as vscode from 'vscode';
-import * as fs from 'fs';
 import * as path from 'path';
 import Utils from './utils';
 import * as nls from 'vscode-nls';
 import { inputConnectionParameters } from './inputConnectionParameters';
-import { inputAuthenticationParameters } from './inputAuthenticationParameters';
 import { ResponseError } from 'vscode-languageclient';
 import serverProvider, {
   EnvironmentTreeItem,
@@ -28,61 +26,26 @@ import serverProvider, {
   ServerTreeItens,
 } from './serverItemProvider';
 import {
-  EventData,
   IServerDebugger,
-  IServerDebuggerAttributes,
   serverManager,
 } from './serverManager';
 import {
-  BuildVersion,
   LS_CONNECTION_TYPE,
-  LSServerType,
 } from '@totvs/tds-languageclient';
+import { createAddServerPanel } from './server/addServer';
 
 let localize = nls.loadMessageBundle();
-const compile = require('template-literal');
-
-const localizeHTML = {
-  'tds.webview.newServer.target': localize(
-    'tds.webview.newServer.target',
-    'Target'
-  ),
-  'tds.webview.newServer.title': localize(
-    'tds.webview.newServer.title',
-    'New Server'
-  ),
-  'tds.webview.newServer.name': localize(
-    'tds.webview.newServer.name',
-    'Server Name'
-  ),
-  'tds.webview.newServer.address': localize(
-    'tds.webview.newServer.address',
-    'Address'
-  ),
-  'tds.webview.newServer.port': localize('tds.webview.newServer.port', 'Port'),
-  'tds.webview.newServer.save': localize('tds.webview.newServer.save', 'Save'),
-  'tds.webview.newServer.saveClose': localize(
-    'tds.webview.newServer.saveClose',
-    'Save/Close'
-  ),
-  'tds.webview.newServer.secure': localize(
-    'tds.webview.newServer.secure',
-    'Secure(SSL)'
-  ),
-  'tds.webview.dir.include': localize(
-    'tds.webview.dir.include',
-    'Includes directory'
-  ),
-  'tds.webview.dir.target': localize('tds.webview.dir.tarfet', 'Target'),
-  'tds.webview.dir.include2': localize(
-    'tds.webview.dir.include2',
-    'Allow multiple directories'
-  ),
-};
 
 export class ServersExplorer {
   constructor(context: vscode.ExtensionContext) {
     let currentPanel: vscode.WebviewPanel | undefined = undefined;
+
+    vscode.commands.registerCommand(
+      'totvs-developer-studio.togleVisibleFolder',
+      (arg: any) => {
+        console.log('aaaa')
+      }
+    );
 
     vscode.commands.registerCommand(
       'totvs-developer-studio.add',
@@ -90,76 +53,14 @@ export class ServersExplorer {
         if (currentPanel) {
           currentPanel.reveal();
         } else {
-          currentPanel = vscode.window.createWebviewPanel(
-            'totvs-developer-studio.add',
-            localize('tds.webview.newServer.title', 'New Server'),
-            vscode.ViewColumn.One,
-            {
-              enableScripts: true,
-              localResourceRoots: [
-                vscode.Uri.file(
-                  path.join(context.extensionPath, 'src', 'server')
-                ),
-              ],
-              retainContextWhenHidden: true,
-            }
-          );
-
-          currentPanel.webview.html = getWebViewContent(
-            context,
-            localizeHTML,
-            folder.folder
-          );
+          currentPanel = createAddServerPanel(context, folder);
           currentPanel.onDidDispose(
             () => {
               currentPanel = undefined;
             },
             null,
             context.subscriptions
-          );
-
-          currentPanel.webview.onDidReceiveMessage(
-            (message) => {
-              switch (message.command) {
-                case 'checkDir':
-                  let checkedDir: string = Utils.checkDir(message.selectedDir);
-
-                  currentPanel.webview.postMessage({
-                    command: 'checkedDir',
-                    checkedDir: checkedDir,
-                  });
-                  break;
-                case 'saveServer':
-                  if (message.serverName && message.port && message.address) {
-                    createServer(
-                      folder.folder,
-                      message.serverType,
-                      message.serverName,
-                      message.port,
-                      message.address,
-                      false,
-                      '',
-                      message.includes
-                    );
-                  } else {
-                    vscode.window.showErrorMessage(
-                      localize(
-                        'tds.webview.serversView.addServerFail',
-                        'Add Server Fail. Name, port and Address are need'
-                      )
-                    );
-                  }
-
-                  if (currentPanel) {
-                    if (message.close) {
-                      currentPanel.dispose();
-                    }
-                  }
-              }
-            },
-            undefined,
-            context.subscriptions
-          );
+            );
         }
       }
     );
@@ -183,8 +84,12 @@ export class ServersExplorer {
 
     const options: vscode.TreeViewOptions<ServerTreeItens> = {
       treeDataProvider: serverProvider,
+      canSelectMany: false,
+      showCollapseAll: false
     };
-    vscode.window.createTreeView('totvs_server', options);
+    const tv: vscode.TreeView<ServerTreeItens> = vscode.window.createTreeView('totvs_server', options);
+    context.subscriptions.push(tv);
+
     vscode.window.registerTreeDataProvider('totvs_server', serverProvider);
 
     vscode.commands.registerCommand(
@@ -334,83 +239,8 @@ export class ServersExplorer {
       }
     );
 
-    // context.subscriptions.push(
-    //   serverManager.onDidChange((event: EventData) => {
-    //     if (event.name === 'load') {
-    //       console.log(this);
-    //     }
-    //   }, serverManager)
-    // );
 
-    function getWebViewContent(context, localizeHTML, folder: string) {
-      const htmlOnDiskPath = vscode.Uri.file(
-        path.join(context.extensionPath, 'src', 'server', 'addServer.html')
-      );
-      const cssOniskPath = vscode.Uri.file(
-        path.join(context.extensionPath, 'resources', 'css', 'form.css')
-      );
 
-      const htmlContent = fs.readFileSync(
-        htmlOnDiskPath.with({ scheme: 'vscode-resource' }).fsPath
-      );
-      const cssContent = fs.readFileSync(
-        cssOniskPath.with({ scheme: 'vscode-resource' }).fsPath
-      );
-
-      let runTemplate = compile(htmlContent);
-
-      return runTemplate({
-        css: cssContent,
-        localize: localizeHTML,
-        target: folder,
-      });
-    }
-
-    function createServer(
-      folder: string,
-      typeServer: LSServerType.LS_SERVER_TYPE,
-      serverName: string,
-      port: number,
-      address: string,
-      secure: boolean,
-      buildVersion: string,
-      includes: string[]
-    ): void {
-      const attributes: Partial<IServerDebugger> = {
-        id: null,
-        type: typeServer,
-        name: serverName,
-        port: port,
-        address: address,
-        build: buildVersion as BuildVersion,
-        secure: secure,
-        includes: includes,
-      };
-
-      const server: IServerDebugger = serverManager.getServerDebugger(
-        folder,
-        attributes
-      );
-
-      if (server) {
-        server.validate().then(
-          (result: boolean) => {
-            if (result) {
-              serverManager.getConfigurations(folder).addServer(server);
-            }
-            vscode.window.showInformationMessage(
-              localize('tds.webview.serversView.serverSaved', 'Saved server ') +
-                serverName
-            );
-
-            return;
-          },
-          (err: ResponseError<object>) => {
-            vscode.window.showErrorMessage(err.message);
-          }
-        );
-      }
-    }
   }
 }
 

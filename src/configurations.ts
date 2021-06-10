@@ -18,8 +18,7 @@ import path = require('path');
 import fs = require('fs');
 import stripJsonComments = require('strip-json-comments');
 import * as vscode from 'vscode';
-import { ICompileOptions } from '../../tds-languageclient/typings/src';
-import { IRpoToken } from './rpoToken';
+import { ICompileOptions } from '@totvs/tds-languageclient';
 
 export namespace TDSConfiguration {
   const config = vscode.workspace.getConfiguration('totvsLanguageServer');

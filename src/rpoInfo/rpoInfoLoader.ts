@@ -2,12 +2,13 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { RpoInfoPanelAction, IRpoInfoPanelAction } from './actions';
 import * as nls from 'vscode-nls';
-import { EventData, IServerDebugger, serverManager } from '../serverManager';
+import { IServerDebugger, serverManager } from '../serverManager';
 import {
   IProgramApp,
   IRpoInfoResult,
   IRpoPatch,
 } from '@totvs/tds-languageclient';
+import { EventData, eventManager } from '../event';
 
 const localize = nls.loadMessageBundle();
 
@@ -46,8 +47,8 @@ export class RpoInfoLoader {
     this._context = context;
 
     this._disposables.push(
-      serverManager.onDidChange((event: EventData) => {
-        if (event.name === 'change' && event.property === 'currentServer') {
+      eventManager.onDidChange((event: EventData) => {
+        if (event.name.toString() === 'change' && event.property.toString() === 'currentServer') {
           rpoInfoLoader.toggleServerToMonitor(event.value.new);
         }
       })

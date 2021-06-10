@@ -6,7 +6,7 @@ import JSZip = require('jszip');
 
 import fs = require('fs');
 import os = require('os');
-import { EventData, IServerDebugger, serverManager } from '../../serverManager';
+import { IServerDebugger, serverManager } from '../../serverManager';
 import { PatchEditorProvider } from '../inspect/patchEditor';
 import {
   IPatchValidateResult,
@@ -15,6 +15,7 @@ import {
   IPatchFileInfo,
   PATCH_ERROR_CODE,
 } from '@totvs/tds-languageclient';
+import { EventData, eventManager } from '../../event';
 
 const localize = nls.loadMessageBundle();
 const WS_STATE_KEY = 'APPLY_PATCH_TABLE';
@@ -69,8 +70,8 @@ export class ApplyPatchLoader {
     this._context = context;
 
     this._disposables.push(
-      serverManager.onDidChange((event: EventData) => {
-        if (event.name === 'change' && event.property === 'currentServer')
+      eventManager.onDidChange((event: EventData) => {
+        if (event.name.toString() === 'change' && event.property.toString() === 'currentServer')
           applyPathLoader.toggleServer(event.value.new);
       })
     );

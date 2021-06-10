@@ -1,13 +1,9 @@
 import * as vscode from 'vscode';
 import * as nls from 'vscode-nls';
 import { TDSConfiguration } from './configurations';
+import { EventData, eventManager } from './event';
 import { IRpoToken } from './rpoToken';
-import {
-  EventData,
-  ICompileKey,
-  IServerDebugger,
-  serverManager,
-} from './serverManager';
+import { ICompileKey, IServerDebugger, serverManager } from './serverManager';
 
 const localize = nls.config({
   locale: vscode.env.language,
@@ -53,8 +49,11 @@ function initStatusBarItem(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     currentServerBarItem,
-    serverManager.onDidChange((event: EventData) => {
-      if (event.name === 'change' && event.property === 'currentServer') {
+    eventManager.onDidChange((event: EventData) => {
+      if (
+        event.name.toString() === 'change' &&
+        event.property.toString() === 'currentServer'
+      ) {
         updateStatusBarItem(event.value.new);
       }
     })
@@ -91,8 +90,11 @@ function initPermissionStatusBarItem(context: vscode.ExtensionContext) {
   permissionStatusBarItem.command = 'totvs-developer-studio.compile.key';
   context.subscriptions.push(
     permissionStatusBarItem,
-    serverManager.onDidChange((event: EventData) => {
-      if (event.name === 'change' && event.property === 'compileKey') {
+    eventManager.onDidChange((event: EventData) => {
+      if (
+        event.name.toString() === 'change' &&
+        event.property.toString() === 'compileKey'
+      ) {
         updatePermissionStatusBarItem(event.value);
       }
     })
@@ -153,8 +155,11 @@ function initRpoTokenStatusBarItem(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     rpoTokenStatusBarItem,
-    serverManager.onDidChange((event: EventData) => {
-      if (event.name === 'change' && event.property === 'rpoToken') {
+    eventManager.onDidChange((event: EventData) => {
+      if (
+        event.name.toString() === 'change' &&
+        event.property.toString() === 'rpoToken'
+      ) {
         updateRpoTokenStatusBarItem(event.value);
       }
     })

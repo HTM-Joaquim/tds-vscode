@@ -1,5 +1,6 @@
 import path = require('path');
 import { noKeyCompile } from './compileKey/compileKey';
+import { EventData, EventGroup, eventManager, EventName, EventProperty } from './event';
 import { IRpoToken, noRpoToken } from './rpoToken';
 import { ICompileKey, IServerDebugger, IServerManager } from './serverManager';
 
@@ -17,7 +18,6 @@ export interface IServerConfigurationAttributes {
 }
 
 interface IServerConfigurationMethods {
-  //file: string;
   getServers(): IServerDebugger[];
 
   addServer(serverItem: IServerDebugger): boolean;
@@ -75,6 +75,12 @@ export class ServerConfiguration implements IServerConfiguration {
     this.file = file;
 
     Object.assign(this, defaultServerConfiguration && attributes);
+
+    eventManager.onDidChange((event: EventData) => {
+      if ((event.sender === this) && (event.name == EventName.needSave)) {
+        this.doSave();
+      }
+    })
   }
 
   get includes(): string[] {
@@ -92,6 +98,14 @@ export class ServerConfiguration implements IServerConfiguration {
     this.parent.saveToFile(this.file, this);
   }
 
+  _fireEvent(
+    name: EventName,
+    property: EventProperty,
+    value: any
+  ) {
+    //eventManager.fireEvent(EventGroup.configuration, name, property, value);
+  }
+
   getServers(): IServerDebugger[] {
     return this.configurations;
   }
@@ -105,10 +119,7 @@ export class ServerConfiguration implements IServerConfiguration {
       })
     ) {
       this.getServers().push(server);
-      this.parent.fireEvent('add', 'servers', {
-        old: undefined,
-        new: server,
-      });
+      this._fireEvent(EventName.add, EventProperty.servers, server);
       result = true;
       this.doSave();
     }
@@ -120,7 +131,7 @@ export class ServerConfiguration implements IServerConfiguration {
     return this.getServers().some((element: IServerDebugger, index: number) => {
       if (element.id === server.id) {
         const elements: IServerDebugger[] = this.getServers().splice(index, 1);
-        this.parent.fireEvent('remove', 'servers', { old: elements, new: [] });
+        this._fireEvent(EventName.remove, EventProperty.servers, { old: elements, new: [] });
         this.doSave();
         return true;
       }
@@ -133,7 +144,7 @@ export class ServerConfiguration implements IServerConfiguration {
         const oldValue: string = this.getServers()[index].name;
         this.getServers()[index].name = newName;
 
-        this.parent.fireEvent('change', 'servers', {
+        this._fireEvent(EventName.change, EventProperty.servers, {
           old: oldValue,
           new: this.getServers()[index],
         });
@@ -156,7 +167,7 @@ export class ServerConfiguration implements IServerConfiguration {
     const oldValue: ICompileKey = this.permissions.authorizationtoken;
     this.permissions.authorizationtoken = infos;
 
-    this.parent.fireEvent('change', 'compileKey', {
+    this._fireEvent(EventName.change, EventProperty.compileKey, {
       old: oldValue,
       new: infos,
     });
@@ -176,6 +187,6 @@ export class ServerConfiguration implements IServerConfiguration {
     this.rpoToken = infos;
     this.doSave();
 
-    this.parent.fireEvent('change', 'rpoToken', { old: oldInfos, new: infos });
+    this._fireEvent(EventName.change, EventProperty.rpoToken, { old: oldInfos, new: infos });
   }
 }

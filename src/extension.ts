@@ -83,7 +83,7 @@ import { openTemplateApplyView } from './template/apply/formApplyTemplate';
 import { rpoTokenInputBox, saveRpoTokenString } from './rpoToken';
 import { TDSConfiguration } from './configurations';
 import { serverManager } from './serverManager';
-import { FolderTreeItem, ServerTreeItem } from './serverItemProvider';
+import { FolderTreeItem, IncludesTreeItem, ServerTreeItem } from './serverItemProvider';
 import { openGeneratePatchView } from './patch/generate/generatePatchLoader';
 
 export let languageClient: LanguageClient;
@@ -491,7 +491,7 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(
     commands.registerCommand(
       'totvs-developer-studio.include',
-      (element: FolderTreeItem | ServerTreeItem) => {
+      (element: FolderTreeItem | ServerTreeItem | IncludesTreeItem) => {
         showInclude(context, element);
       }
     )

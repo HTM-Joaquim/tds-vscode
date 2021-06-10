@@ -23,7 +23,8 @@ import {
   PatchProcess,
 } from './generatePatchData';
 import { sendPatchGenerateMessage } from '../patchUtil';
-import { EventData, IServerDebugger, serverManager } from '../../serverManager';
+import { IServerDebugger, serverManager } from '../../serverManager';
+import { EventData, eventManager } from '../../event';
 
 const fs = require('fs');
 const os = require('os');
@@ -75,8 +76,8 @@ class GeneratePatchLoader {
     this._context = context;
 
     this._disposables.push(
-      serverManager.onDidChange((event: EventData) => {
-        if (event.name === 'change' && event.property === 'currentServer') {
+      eventManager.onDidChange((event: EventData) => {
+        if (event.name.toString() === 'change' && event.property.toString() === 'currentServer') {
           generatePathLoader.toggleServer(event.value.new);
         }
       })

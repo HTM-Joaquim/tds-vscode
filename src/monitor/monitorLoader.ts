@@ -4,7 +4,6 @@ import { MonitorPanelAction, IMonitorPanelAction } from './actions';
 import { languageClient } from '../extension';
 import * as nls from 'vscode-nls';
 import {
-  EventData,
   IGetUsersData,
   IServerMonitor,
   serverManager,
@@ -18,6 +17,7 @@ import {
   IStopServerResult,
   ISetConnectionStatusResult,
 } from '@totvs/tds-languageclient';
+import { EventData, eventManager } from '../event';
 
 const localize = nls.loadMessageBundle();
 const DEFAULT_SPEED = 30;
@@ -67,8 +67,8 @@ export class MonitorLoader {
     this._context = context;
 
     this._disposables.push(
-      serverManager.onDidChange((event: EventData) => {
-        if (event.name === 'change' && event.property === 'currentServer') {
+      eventManager.onDidChange((event: EventData) => {
+        if (event.name.toString() === 'change' && event.property.toString() === 'currentServer') {
           monitorLoader.toggleServerToMonitor(event.value.new);
         }
       })

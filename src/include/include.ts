@@ -5,7 +5,11 @@ import Utils from '../utils';
 
 import * as nls from 'vscode-nls';
 import { serverManager } from '../serverManager';
-import { FolderTreeItem, ServerTreeItem } from '../serverItemProvider';
+import {
+  FolderTreeItem,
+  IncludesTreeItem,
+  ServerTreeItem,
+} from '../serverItemProvider';
 
 const localize = nls.loadMessageBundle();
 const compile = require('template-literal');
@@ -30,7 +34,7 @@ let currentPanel: vscode.WebviewPanel | undefined = undefined;
 
 export default function showInclude(
   context: vscode.ExtensionContext,
-  target: FolderTreeItem | ServerTreeItem
+  target: FolderTreeItem | ServerTreeItem | IncludesTreeItem
 ) {
   let includes: string[] = [];
 
@@ -40,17 +44,21 @@ export default function showInclude(
     let title: string = localize('tds.webview.title', 'Include');
     let folderStr: string;
 
-    if (target.hasOwnProperty('folder')) {
-      const fti: FolderTreeItem = target as FolderTreeItem;
-      title = `${title}: ${fti.folder} (default)`;
-      includes = serverManager.getIncludes(fti.folder, false);
-      folderStr = fti.folder;
-    } else {
-      const sti: ServerTreeItem = target as ServerTreeItem;
-      title = `${title}: ${sti.server.name}`;
-      includes = sti.server.includes;
-      folderStr = sti.parent.folder;
+    if (target instanceof IncludesTreeItem) {
+      const ti: IncludesTreeItem = target as IncludesTreeItem;
+      target = ti.parent;
     }
+
+    if (target instanceof FolderTreeItem) {
+      const ti: FolderTreeItem = target as FolderTreeItem;
+      includes = serverManager.getIncludes(ti.folder, false);
+      folderStr = ti.folder;
+    } else {
+      const ti: ServerTreeItem = target as ServerTreeItem;
+      includes = ti.server.includes;
+      folderStr = ti.parent.folder;
+    }
+    title = `${title}: ${folderStr}`;
 
     currentPanel = vscode.window.createWebviewPanel(
       'totvs-developer-studio.include',
@@ -96,13 +104,15 @@ export default function showInclude(
             });
             break;
           case 'includeClose':
-            const includePath: string[] = message.include;
-            if (target.hasOwnProperty('folder')) {
+            const includePath: string[] = message.include.filter((value: string) => {
+              return value.trim() !== '';
+            });
+
+            if (target instanceof FolderTreeItem) {
               const fti: FolderTreeItem = target as FolderTreeItem;
               serverManager.setIncludes(fti.folder, includePath);
             } else {
               const sti: ServerTreeItem = target as ServerTreeItem;
-              title = `${title}: ${sti.server.name}`;
               sti.server.includes = includePath;
             }
 
