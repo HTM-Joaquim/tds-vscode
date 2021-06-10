@@ -1,12 +1,9 @@
 /*
 Copyright 2021 TOTVS S.A
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
   http: //www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -28,7 +25,6 @@ import {
   ServerOptions,
 } from 'vscode-languageclient/lib/main';
 import * as vscode from 'vscode';
-
 import * as nls from 'vscode-nls';
 import { syncSettings } from './server/languageServerSettings';
 import { TotvsLanguageClientA } from './TotvsLanguageClientA';
@@ -37,20 +33,15 @@ import {
   startLanguageServer,
   ITdsLanguageClient,
 } from '@totvs/tds-languageclient';
-
 let localize = nls.loadMessageBundle();
-
 export let sessionKey: string;
-
 export let isLSInitialized = false;
-
 export function getLanguageClient(
   context: ExtensionContext
 ): TotvsLanguageClientA {
   let clientConfig = getClientConfig(context);
   //if (!clientConfig)
   //	return undefined;
-
   // Notify the user that if they change a cquery setting they need to restart
   // vscode.
   context.subscriptions.push(
@@ -59,7 +50,6 @@ export function getLanguageClient(
         if (!clientConfig.hasOwnProperty(key)) {
           continue;
         }
-
         if (
           !clientConfig ||
           JSON.stringify(clientConfig[key]) !==
@@ -74,7 +64,6 @@ export function getLanguageClient(
             "Please reload to apply the 'TOTVS.{0}' configuration change.",
             key
           );
-
           window.showInformationMessage(message, kReload).then((selected) => {
             if (selected === kReload) {
               commands.executeCommand('workbench.action.reloadWindow');
@@ -82,12 +71,10 @@ export function getLanguageClient(
           });
           break;
         }
-
         syncSettings();
       }
     })
   );
-
   const serverOptions: ServerOptions = () => {
     const options: Partial<IStartLSOptions> = {
       // logging: false,
@@ -95,10 +82,8 @@ export function getLanguageClient(
       // verbose: 'warn'
     };
     const lsServer: ITdsLanguageClient = startLanguageServer(options);
-
     return Promise.resolve(lsServer.lsProcess);
   };
-
   // Inline code lens.
   let decorationOpts: DecorationRenderOptions = {
     after: {
@@ -107,7 +92,6 @@ export function getLanguageClient(
     },
     rangeBehavior: DecorationRangeBehavior.ClosedClosed,
   };
-
   // Options to control the language client
   let clientOptions: LanguageClientOptions = {
     documentSelector: [{ language: 'advpl' }, { language: '4gl' }],
@@ -129,16 +113,12 @@ export function getLanguageClient(
     // },
     //errorHandler: new CqueryErrorHandler(workspace.getConfiguration('cquery'))
   };
-
   let languageClient = new TotvsLanguageClientA(serverOptions, clientOptions);
-
   languageClient
     .onReady()
     .then(() => {
       isLSInitialized = true;
-
       syncSettings();
-
       // if (TDSConfiguration.isReconnectLastServer()) {
       //   reconnectLastServer();
       // }
@@ -147,22 +127,17 @@ export function getLanguageClient(
       // TODO: remove cquery.launch.workingDirectory after July 2018
       window.showErrorMessage(e);
     });
-
   return languageClient;
 }
-
 //Internal Functions
-
 function getClientConfig(context: ExtensionContext) {
   function resolveVariablesInString(value: string) {
     let rootPath: string = vscode.workspace.rootPath || process.cwd();
     return value.replace('${workspaceFolder}', rootPath);
   }
-
   function resolveVariablesInArray(value: any[]) {
     return value.map((v) => resolveVariables(v));
   }
-
   function resolveVariables(value: any) {
     if (typeof value === 'string') {
       return resolveVariablesInString(value);
@@ -172,14 +147,11 @@ function getClientConfig(context: ExtensionContext) {
     }
     return value;
   }
-
   let configMapping = [['launchArgs', 'launch.args']];
   let clientConfig = {};
   let config = workspace.getConfiguration('totvsLanguageServer');
-
   for (let prop of configMapping) {
     let value = config.get(prop[1]);
-
     if (value !== undefined && value !== null) {
       //if(prop[1] === 'launch.command') {
       //	if (process.platform ==== "win32"){
@@ -201,16 +173,13 @@ function getClientConfig(context: ExtensionContext) {
       subconfig[subprops[subprops.length - 1]] = resolveVariables(value);
     }
   }
-
   // Provide a default cache directory if it is not present. Insert next to
   // the project since if the user has an SSD they most likely have their
   // source files on the SSD as well.
   //let cacheDir = '${workspaceFolder}/.vscode/cquery_cached_index/';
-
   //Processo de cache desabilitado até que seja corretamente implementado pelo LS
   //let cacheDir = '${workspaceFolder}/.vscode/totvs_cached_index/';
   //clientConfig.cacheDirectory = resolveVariables(cacheDir);
   //config.update(kCacheDirPrefName, cacheDir, false /*global*/);
-
   return clientConfig;
 }

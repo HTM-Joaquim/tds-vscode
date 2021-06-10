@@ -85,6 +85,7 @@ import { TDSConfiguration } from './configurations';
 import { serverManager } from './serverManager';
 import { FolderTreeItem, IncludesTreeItem, ServerTreeItem } from './serverItemProvider';
 import { openGeneratePatchView } from './patch/generate/generatePatchLoader';
+import { TestView } from './testView';
 
 export let languageClient: LanguageClient;
 export function parseUri(u): Uri {
@@ -407,10 +408,8 @@ export function activate(context: ExtensionContext) {
   );
 
   //View
-  let viewServer = new ServersExplorer(context);
-  if (!viewServer) {
-    console.error('Servers view not initialized.');
-  }
+  new ServersExplorer(context);
+	new TestView(context);
 
   context.subscriptions.push(
     commands.registerCommand(

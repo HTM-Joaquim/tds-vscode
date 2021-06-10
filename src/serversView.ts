@@ -25,47 +25,42 @@ import serverProvider, {
   ServerTreeItem,
   ServerTreeItens,
 } from './serverItemProvider';
-import {
-  IServerDebugger,
-  serverManager,
-} from './serverManager';
-import {
-  LS_CONNECTION_TYPE,
-} from '@totvs/tds-languageclient';
+import { IServerDebugger, serverManager } from './serverManager';
+import { LS_CONNECTION_TYPE } from '@totvs/tds-languageclient';
 import { createAddServerPanel } from './server/addServer';
 
 let localize = nls.loadMessageBundle();
 
 export class ServersExplorer {
   constructor(context: vscode.ExtensionContext) {
-    let currentPanel: vscode.WebviewPanel | undefined = undefined;
+    const options: vscode.TreeViewOptions<ServerTreeItens> = {
+      treeDataProvider: serverProvider,
+      canSelectMany: false,
+      showCollapseAll: false,
+    };
+    context.subscriptions.push(
+      vscode.window.createTreeView('totvs_server', options),
+      vscode.window.registerTreeDataProvider('totvs_server', serverProvider)
+    );
 
-    vscode.commands.registerCommand(
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
       'totvs-developer-studio.togleVisibleFolder',
       (arg: any) => {
-        console.log('aaaa')
+        console.log('aaaa');
       }
-    );
+    ));
 
-    vscode.commands.registerCommand(
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
       'totvs-developer-studio.add',
       (folder: FolderTreeItem) => {
-        if (currentPanel) {
-          currentPanel.reveal();
-        } else {
-          currentPanel = createAddServerPanel(context, folder);
-          currentPanel.onDidDispose(
-            () => {
-              currentPanel = undefined;
-            },
-            null,
-            context.subscriptions
-            );
-        }
+        createAddServerPanel(context, folder);
       }
-    );
+    ));
 
-    vscode.commands.registerCommand(
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
       'totvs-developer-studio.config',
       (element: FolderTreeItem) => {
         vscode.window.showTextDocument(
@@ -74,7 +69,7 @@ export class ServersExplorer {
           )
         );
       }
-    );
+    ));
 
     // check if there is an open folder
     if (vscode.workspace.workspaceFolders === undefined) {
@@ -82,115 +77,32 @@ export class ServersExplorer {
       return;
     }
 
-    const options: vscode.TreeViewOptions<ServerTreeItens> = {
-      treeDataProvider: serverProvider,
-      canSelectMany: false,
-      showCollapseAll: false
-    };
-    const tv: vscode.TreeView<ServerTreeItens> = vscode.window.createTreeView('totvs_server', options);
-    context.subscriptions.push(tv);
-
-    vscode.window.registerTreeDataProvider('totvs_server', serverProvider);
-
-    vscode.commands.registerCommand(
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
       'totvs-developer-studio.connect',
       (serverItem: ServerTreeItem) => {
-        let server: IServerDebugger = serverItem.server;
-        if (server) {
-          //Verifica se ha um build cadastrado.
-          if (server.build) {
-            inputConnectionParameters(
-              context,
-              serverItem,
-              LS_CONNECTION_TYPE.Debugger,
-              false
-            );
-          } else {
-            vscode.window.setStatusBarMessage(
-              `Validando servidor [${server.type}]`,
-              server.validate().then(
-                (result: boolean) => {
-                  if (result) {
-                    //continua a autenticacao.
-                    inputConnectionParameters(
-                      context,
-                      serverItem,
-                      LS_CONNECTION_TYPE.Debugger,
-                      false
-                    );
-                  } else {
-                    vscode.window.showErrorMessage(
-                      localize(
-                        'tds.webview.serversView.couldNotConn',
-                        'Could not connect to server'
-                      )
-                    );
-                  }
-                  return;
-                },
-                (err: ResponseError<object>) => {
-                  vscode.window.showErrorMessage(err.message);
-                }
-              )
-            );
-          }
-        }
+        processConnect(context, serverItem);
       }
-    );
+    ));
 
-    vscode.commands.registerCommand(
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
       'totvs-developer-studio.reconnect',
       (serverItem: ServerTreeItem) => {
-        const server: IServerDebugger = serverItem.server;
-        if (server) {
-          //Verifica se ha um buildVersion cadastrado.
-          if (server.build) {
-            inputConnectionParameters(
-              context,
-              serverItem,
-              LS_CONNECTION_TYPE.Debugger,
-              true
-            );
-          } else {
-            vscode.window.showErrorMessage(
-              localize(
-                'tds.webview.serversView.couldNotReconn',
-                'Could not reconnect to server'
-              )
-            );
-          }
-        }
+        processReconnect(context, serverItem);
       }
-    );
+    ));
 
-    vscode.commands.registerCommand(
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
       'totvs-developer-studio.disconnect',
       (serverItem: ServerTreeItem) => {
-        const server: IServerDebugger = serverItem.server;
-        if (server && server.isConnected()) {
-          vscode.window.setStatusBarMessage(
-            `Desconectando do servidor [${server.name}]`,
-            server.disconnect().then(
-              (value: string) => {
-                vscode.window.showErrorMessage(value);
-              },
-              (err: ResponseError<object>) => {
-                vscode.window.showErrorMessage(err.message);
-              }
-            )
-          );
-        } else {
-          vscode.window.showInformationMessage(
-            localize(
-              'tds.webview.serversView.alreadyConn',
-              'Server is already disconnected'
-            )
-          );
-        }
+        processDisconnect(context, serverItem);
       }
-    );
+    ));
 
-    vscode.commands.registerCommand(
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
       'totvs-developer-studio.selectenv',
       (environment: EnvironmentTreeItem) => {
         inputConnectionParameters(
@@ -200,48 +112,141 @@ export class ServersExplorer {
           true
         );
       }
-    );
+    ));
 
-    vscode.commands.registerCommand(
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
       'totvs-developer-studio.delete',
       (serverItem: ServerTreeItem) => {
         const server: IServerDebugger = serverItem.server;
         const folder: FolderTreeItem = serverItem.parent;
         serverManager.getConfigurations(folder.folder).deleteServer(server);
       }
-    );
+    ));
 
-    vscode.commands.registerCommand(
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
       'totvs-developer-studio.delete.environment',
       (environmentItem: EnvironmentTreeItem) => {
         environmentItem.parent.server.removeEnvironment(environmentItem.label);
       }
-    );
+    ));
 
-    vscode.commands.registerCommand(
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
       'totvs-developer-studio.rename',
       (serverItem: ServerTreeItem) => {
-        const server: IServerDebugger = serverItem.server;
-        vscode.window
-          .showInputBox({
-            placeHolder: localize(
-              'tds.webview.serversView.renameServer',
-              'Rename the server'
-            ),
-            value:
-              typeof serverItem.label === 'string'
-                ? serverItem.label
-                : (serverItem.label as vscode.TreeItemLabel).label,
-          })
-          .then((newName: string) => {
-            //serverManager.renameServer(server, newName);
-          });
+        processRename(context, serverItem);
       }
-    );
-
-
-
+    ));
   }
+}
+
+function processConnect(context: vscode.ExtensionContext, serverItem: ServerTreeItem) {
+  let server: IServerDebugger = serverItem.server;
+  if (server) {
+    //Verifica se ha um build cadastrado.
+    if (server.build) {
+      inputConnectionParameters(
+        context,
+        serverItem,
+        LS_CONNECTION_TYPE.Debugger,
+        false
+      );
+    } else {
+      vscode.window.setStatusBarMessage(
+        `Validando servidor [${server.type}]`,
+        server.validate().then(
+          (result: boolean) => {
+            if (result) {
+              //continua a autenticacao.
+              inputConnectionParameters(
+                context,
+                serverItem,
+                LS_CONNECTION_TYPE.Debugger,
+                false
+              );
+            } else {
+              vscode.window.showErrorMessage(
+                localize(
+                  'tds.webview.serversView.couldNotConn',
+                  'Could not connect to server'
+                )
+              );
+            }
+            return;
+          },
+          (err: ResponseError<object>) => {
+            vscode.window.showErrorMessage(err.message);
+          }
+        )
+      );
+    }
+  }
+}
+
+function processReconnect(context: vscode.ExtensionContext, serverItem: ServerTreeItem) {
+  const server: IServerDebugger = serverItem.server;
+if (server) {
+  //Verifica se ha um buildVersion cadastrado.
+  if (server.build) {
+    inputConnectionParameters(
+      context,
+      serverItem,
+      LS_CONNECTION_TYPE.Debugger,
+      true
+    );
+  } else {
+    vscode.window.showErrorMessage(
+      localize(
+        'tds.webview.serversView.couldNotReconn',
+        'Could not reconnect to server'
+      )
+    );
+  }
+}
+}
+
+function processDisconnect(context: vscode.ExtensionContext, serverItem: ServerTreeItem) {
+const server: IServerDebugger = serverItem.server;
+if (server && server.isConnected()) {
+  vscode.window.setStatusBarMessage(
+    `Desconectando do servidor [${server.name}]`,
+    server.disconnect().then(
+      (value: string) => {
+        vscode.window.showErrorMessage(value);
+      },
+      (err: ResponseError<object>) => {
+        vscode.window.showErrorMessage(err.message);
+      }
+    )
+  );
+} else {
+  vscode.window.showInformationMessage(
+    localize(
+      'tds.webview.serversView.alreadyConn',
+      'Server is already disconnected'
+    )
+  );
+}
+}
+
+function processRename(context: vscode.ExtensionContext, serverItem: ServerTreeItem) {
+  const server: IServerDebugger = serverItem.server;
+vscode.window
+  .showInputBox({
+    placeHolder: localize(
+      'tds.webview.serversView.renameServer',
+      'Rename the server'
+    ),
+    value:
+      typeof serverItem.label === 'string'
+        ? serverItem.label
+        : (serverItem.label as vscode.TreeItemLabel).label,
+  })
+  .then((newName: string) => {
+    //serverManager.renameServer(server, newName);
+  });
 }
 
 /*

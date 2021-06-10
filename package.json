@@ -193,6 +193,7 @@
     "onCommand:totvs-developer-studio.templateApply",
     "onCommand:totvs-developer-studio.templateApply.fromFile",
     "onView:totvs_server",
+    "onView:testView",
     "workspaceContains:.tds",
     "workspaceContains:*.prw",
     "workspaceContains:*.ppo",
@@ -1303,6 +1304,12 @@
         }
       ]
     },
+    "explorer": [
+      {
+        "id": "testView",
+        "name": "Test View"
+      }
+    ],
     "menus": {
       "explorer/context": [
         {
