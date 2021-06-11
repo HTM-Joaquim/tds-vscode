@@ -19,7 +19,8 @@
 			"name": "Extension",
 			"runtimeExecutable": "${execPath}",
 			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}"
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--enable-proposed-api TOTVS.tds-vscode"
 			],
 			"outFiles": [
 				"${workspaceFolder}/out/**/*.js"

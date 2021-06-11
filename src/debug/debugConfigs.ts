@@ -1,7 +1,9 @@
 import {
+  commands,
   debug,
   DebugSession,
   Disposable,
+  ExtensionContext,
   extensions,
   QuickPick,
   QuickPickItem,
@@ -18,6 +20,12 @@ const localize = nls.loadMessageBundle();
 let isTableSyncEnabled = false;
 let debugSession: DebugSession | undefined;
 let dapArgs: string[] = [];
+
+export function registerDap(context: ExtensionContext): Disposable {
+  const c1 = commands.registerCommand('tds.getDAP', () => getDAP());
+
+  return Disposable.from(c1);
+}
 
 export function getDAP() {
   let pathDAP = '';

@@ -40,10 +40,7 @@ export function getLanguageClient(
   context: ExtensionContext
 ): TotvsLanguageClientA {
   let clientConfig = getClientConfig(context);
-  //if (!clientConfig)
-  //	return undefined;
-  // Notify the user that if they change a cquery setting they need to restart
-  // vscode.
+
   context.subscriptions.push(
     workspace.onDidChangeConfiguration(() => {
       for (let key in clientConfig) {
@@ -75,6 +72,7 @@ export function getLanguageClient(
       }
     })
   );
+
   const serverOptions: ServerOptions = () => {
     const options: Partial<IStartLSOptions> = {
       // logging: false,
