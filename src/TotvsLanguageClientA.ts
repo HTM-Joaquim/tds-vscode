@@ -17,7 +17,7 @@ import {
   LanguageClient,
   ServerOptions,
   LanguageClientOptions,
-} from 'vscode-languageclient';
+} from 'vscode-languageclient/node';
 
 export class TotvsLanguageClientA extends LanguageClient {
   constructor(

@@ -16,17 +16,16 @@ limitations under the License.
 'use strict';
 import * as vscode from 'vscode';
 import * as nls from 'vscode-nls';
+import * as ls from 'vscode-languageserver-types';
 
 const localize = nls.config({
   locale: vscode.env.language,
   bundleFormat: nls.BundleFormat.standalone,
 })();
 
-import * as ls from 'vscode-languageserver-types';
 import {
   window,
   commands,
-  extensions,
   workspace,
   ExtensionContext,
   Uri,
@@ -38,8 +37,6 @@ import { ServersExplorer } from './serversView';
 import { compileKeyPage } from './compileKey/compileKey';
 import { getLanguageClient } from './TotvsLanguageClient';
 import { patchGenerate, patchGenerateFromFolder } from './patch/patchGenerate';
-import Utils from './utils';
-import { LanguageClient } from 'vscode-languageclient';
 import {
   commandBuildFile,
   commandBuildWorkspace,
@@ -89,9 +86,11 @@ import {
   ServerTreeItem,
 } from './serverItemProvider';
 import { openGeneratePatchView } from './patch/generate/generatePatchLoader';
-import { Converter } from 'vscode-languageclient/lib/protocolConverter';
+import { ITdsLanguageClient } from '@totvs/tds-languageclient';
+import { Converter } from 'vscode-languageclient/lib/common/protocolConverter';
 
-export let languageClient: LanguageClient;
+export let languageClient: ITdsLanguageClient;
+
 export function parseUri(u): Uri {
   return Uri.parse(u);
 }
@@ -112,8 +111,8 @@ export function activate(context: ExtensionContext) {
 
   //Load Language Client and start Language Server
   let p2c: Converter;
-  languageClient = getLanguageClient(context);
-  context.subscriptions.push(languageClient.start());
+  const languageClient = getLanguageClient(context);
+  // context.subscriptions.push(languageClient.start());
 
   //Ativação DAP
   registerDap(context);
@@ -121,8 +120,9 @@ export function activate(context: ExtensionContext) {
   //General commands.
   (() => {
     commands.registerCommand('advpl.freshenIndex', () => {
-      languageClient.sendNotification('$advpl/freshenIndex');
+      languageClient.freshenIndex();
     });
+
     function makeRefHandler(methodName, autoGotoIfSingle = false) {
       return () => {
         let position;

@@ -17,7 +17,6 @@ import * as vscode from "vscode";
 import { ResponseError } from "vscode-languageclient";
 import { _debugEvent } from "../debug";
 import { languageClient } from "../extension";
-import Utils from "../utils";
 import { PatchResult } from "./patchGenerate";
 
 export function sendPatchGenerateMessage(server, patchMaster, patchDest, patchType, patchName, filesPath) {

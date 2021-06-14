@@ -23,22 +23,24 @@ import {
   LanguageClientOptions,
   RevealOutputChannelOn,
   ServerOptions,
-} from 'vscode-languageclient/lib/main';
+} from 'vscode-languageclient/node';
 import * as vscode from 'vscode';
 import * as nls from 'vscode-nls';
 import { syncSettings } from './server/languageServerSettings';
-import { TotvsLanguageClientA } from './TotvsLanguageClientA';
 import {
   IStartLSOptions,
-  startLanguageServer,
+  getTDSLanguageServer,
   ITdsLanguageClient,
 } from '@totvs/tds-languageclient';
+import { TotvsLanguageClientA } from './TotvsLanguageClientA';
+
 let localize = nls.loadMessageBundle();
 export let sessionKey: string;
 export let isLSInitialized = false;
+
 export function getLanguageClient(
   context: ExtensionContext
-): TotvsLanguageClientA {
+): ITdsLanguageClient {
   let clientConfig = getClientConfig(context);
 
   context.subscriptions.push(
@@ -75,11 +77,11 @@ export function getLanguageClient(
 
   const serverOptions: ServerOptions = () => {
     const options: Partial<IStartLSOptions> = {
-      // logging: false,
-      // trace: 'off',
-      // verbose: 'warn'
+      logging: true,
+      trace: 'off',
+      verbose: 'warn'
     };
-    const lsServer: ITdsLanguageClient = startLanguageServer(options);
+    const lsServer: ITdsLanguageClient = getTDSLanguageServer(options);
     return Promise.resolve(lsServer.lsProcess);
   };
   // Inline code lens.
@@ -111,7 +113,7 @@ export function getLanguageClient(
     // },
     //errorHandler: new CqueryErrorHandler(workspace.getConfiguration('cquery'))
   };
-  let languageClient = new TotvsLanguageClientA(serverOptions, clientOptions);
+  let languageClient: ITdsLanguageClient = new TotvsLanguageClientA(serverOptions, clientOptions);
   languageClient
     .onReady()
     .then(() => {
