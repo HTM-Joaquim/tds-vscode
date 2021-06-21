@@ -88,8 +88,9 @@ import {
 import { openGeneratePatchView } from './patch/generate/generatePatchLoader';
 import { ITdsLanguageClient } from '@totvs/tds-languageclient';
 import { Converter } from 'vscode-languageclient/lib/common/protocolConverter';
+import { TotvsLanguageClientA } from './TotvsLanguageClientA';
 
-export let languageClient: ITdsLanguageClient;
+export let languageClient: TotvsLanguageClientA;
 
 export function parseUri(u): Uri {
   return Uri.parse(u);
@@ -111,7 +112,7 @@ export function activate(context: ExtensionContext) {
 
   //Load Language Client and start Language Server
   let p2c: Converter;
-  const languageClient = getLanguageClient(context);
+  const languageClient: TotvsLanguageClientA = getLanguageClient(context);
   // context.subscriptions.push(languageClient.start());
 
   //Ativação DAP

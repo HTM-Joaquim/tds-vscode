@@ -3,7 +3,7 @@ import * as nls from 'vscode-nls';
 import * as fs from 'fs';
 import path = require('path');
 import { BuildVersion, LSServerType } from '@totvs/tds-languageclient';
-import { ResponseError } from 'vscode-languageclient';
+import { ResponseError } from 'vscode-languageclient/node';
 import { FolderTreeItem } from '../serverItemProvider';
 import { IServerDebugger, serverManager } from '../serverManager';
 import Utils from '../utils';

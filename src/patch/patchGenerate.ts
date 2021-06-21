@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import Utils from '../utils';
 import { commandBuildFile } from '../compile/tdsBuild';
 import * as nls from 'vscode-nls';
-import { ResponseError } from 'vscode-languageclient';
+import { ResponseError } from 'vscode-languageclient/node';
 import { _debugEvent } from '../debug';
 import {
   IServerDebugger,

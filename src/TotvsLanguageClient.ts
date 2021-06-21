@@ -40,7 +40,7 @@ export let isLSInitialized = false;
 
 export function getLanguageClient(
   context: ExtensionContext
-): ITdsLanguageClient {
+): TotvsLanguageClientA {
   let clientConfig = getClientConfig(context);
 
   context.subscriptions.push(
@@ -113,7 +113,7 @@ export function getLanguageClient(
     // },
     //errorHandler: new CqueryErrorHandler(workspace.getConfiguration('cquery'))
   };
-  let languageClient: ITdsLanguageClient = new TotvsLanguageClientA(serverOptions, clientOptions);
+  let languageClient: TotvsLanguageClientA = new TotvsLanguageClientA(serverOptions, clientOptions);
   languageClient
     .onReady()
     .then(() => {

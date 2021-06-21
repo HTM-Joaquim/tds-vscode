@@ -20,6 +20,9 @@ import {
 } from 'vscode-languageclient/node';
 
 export class TotvsLanguageClientA extends LanguageClient {
+  freshenIndex() {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     serverOptions: ServerOptions,
     clientOptions: LanguageClientOptions

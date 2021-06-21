@@ -8,7 +8,7 @@ import {
   IServerMonitor,
   serverManager,
 } from '../serverManager';
-import { ResponseError } from 'vscode-languageclient';
+import { ResponseError } from 'vscode-languageclient/node';
 import {
   LS_CONNECTION_TYPE,
   IResponseStatus,

@@ -16,7 +16,7 @@
 // }
 
 // import { languageClient } from './extension';
-// import { ResponseError } from 'vscode-languageclient';
+// import { ResponseError } from 'vscode-languageclient/node';
 // import { ServerItem } from './serverItemProvider';
 // import { CompileResult } from './compile/CompileResult';
 // import { _debugEvent } from './debug';

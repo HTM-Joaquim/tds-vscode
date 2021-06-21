@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import { languageClient } from '../extension';
 import { isLSInitialized } from '../TotvsLanguageClient';
 import Utils from '../utils';
-import { ResponseError } from 'vscode-languageclient';
+import { ResponseError } from 'vscode-languageclient/node';
 import { IAuthorization, ICompileKey, serverManager } from '../serverManager';
 
 let localize = nls.loadMessageBundle();

@@ -8,7 +8,7 @@ var windows1252 = require('windows-1252');
 var windows1251 = require('windows-1251');
 
 import * as nls from 'vscode-nls';
-import { ResponseError } from 'vscode-languageclient';
+import { ResponseError } from 'vscode-languageclient/node';
 import { IServerDebugger, serverManager } from '../serverManager';
 import { ICompileResult, ICompileOptions } from '@totvs/tds-languageclient';
 import { TDSConfiguration } from '../configurations';

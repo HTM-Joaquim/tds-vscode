@@ -19,7 +19,7 @@ import * as fs from 'fs';
 import { extensions, window, Uri, ViewColumn } from 'vscode';
 import * as nls from 'vscode-nls';
 import Utils from '../utils';
-import { ResponseError } from 'vscode-languageclient';
+import { ResponseError } from 'vscode-languageclient/node';
 import { _debugEvent } from '../debug';
 import { IServerDebugger, serverManager } from '../serverManager';
 import {

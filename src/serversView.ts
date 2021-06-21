@@ -18,7 +18,7 @@ import * as path from 'path';
 import Utils from './utils';
 import * as nls from 'vscode-nls';
 import { inputConnectionParameters } from './inputConnectionParameters';
-import { ResponseError } from 'vscode-languageclient';
+import { ResponseError } from 'vscode-languageclient/node';
 import serverProvider, {
   EnvironmentTreeItem,
   FolderTreeItem,

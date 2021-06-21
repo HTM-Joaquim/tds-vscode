@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as nls from 'vscode-nls';
 import Utils from '../utils';
-import { ResponseError } from 'vscode-languageclient';
+import { ResponseError } from 'vscode-languageclient/node';
 import { _debugEvent } from '../debug';
 import { IServerDebugger, serverManager } from '../serverManager';
 

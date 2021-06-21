@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import compile = require('template-literal');
 import * as nls from 'vscode-nls';
-import { ResponseError } from 'vscode-languageclient';
+import { ResponseError } from 'vscode-languageclient/node';
 import { _debugEvent } from '../debug';
 import { IServerDebugger, serverManager } from '../serverManager';
 import {

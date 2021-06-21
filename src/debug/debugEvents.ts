@@ -13,7 +13,7 @@ import Utils, { MESSAGETYPE } from '../utils';
 import { CreateTDSReplayTimeLineWebView } from './tdsreplay/TDSReplayTimeLineCreator';
 
 import { getLanguageClient } from '../TotvsLanguageClient';
-import { LanguageClient } from 'vscode-languageclient';
+import { LanguageClient } from 'vscode-languageclient/node';
 import { TDSConfiguration } from '../configurations';
 
 const DEBUG_TYPE = TotvsConfigurationProvider.type;

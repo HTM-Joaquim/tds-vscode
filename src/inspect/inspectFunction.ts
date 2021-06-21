@@ -5,7 +5,7 @@ import Utils from '../utils';
 import { languageClient } from '../extension';
 const compile = require('template-literal');
 import * as nls from 'vscode-nls';
-import { ResponseError } from 'vscode-languageclient';
+import { ResponseError } from 'vscode-languageclient/node';
 import { serverManager } from '../serverManager';
 let localize = nls.loadMessageBundle();
 
