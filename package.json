@@ -19,7 +19,10 @@
     "monitor",
     "protheus"
   ],
-  "icon": "imagens/totvs-developer-studio.png",
+  "engines": {
+    "vscode": "^1.47.0"
+  },
+  "icon": "icons/totvs-developer-studio.png",
   "categories": [
     "Programming Languages",
     "Snippets",
@@ -35,9 +38,6 @@
     "url": "https://github.com/totvs/tds-vscode.git"
   },
   "homepage": "https://github.com/totvs/tds-vscode#readme",
-  "engines": {
-    "vscode": "^1.47.0"
-  },
   "main": "./out/extension",
   "types": "typings/index.d.ts",
   "scripts": {
@@ -75,7 +75,7 @@
     "@material-ui/lab": "^4.0.0-alpha.56",
     "@totvs/prettier-plugin-4gl": "^0.1.2",
     "@totvs/prettier-plugin-advpl": "^0.1.2",
-    "@totvs/tds-da": "^1.1.23",
+    "@totvs/tds-da": "^1.1.24",
     "@totvs/tds-languageclient": "file:../tds-languageclient",
     "@types/node": "^14.14.12",
     "@types/react": "^16.9.50",
@@ -1290,7 +1290,7 @@
         {
           "id": "totvs-plataform",
           "title": "TOTVS",
-          "icon": "imagens/totvs24x24.png"
+          "icon": "icons/totvs24x24.png"
         }
       ]
     },
