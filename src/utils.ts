@@ -33,7 +33,6 @@ export enum MESSAGETYPE {
 }
 
 export default class Utils {
-  static readonly SERVER_DEFINITION_FILE: string = 'servers.json';
 
   // static updateSavedToken(id: string, environment: string, token: string) {
   //   const servers = Utils.getServersConfig();

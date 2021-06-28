@@ -174,4 +174,8 @@ export namespace TDSConfiguration {
       }
     }
   }
+
+  export function isGlobalServerFile() : boolean {
+    return true;
+  }
 }

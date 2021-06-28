@@ -635,7 +635,7 @@ export function activate(context: ExtensionContext) {
   // Register custom editor for patch files
   context.subscriptions.push(PatchEditorProvider.register(context));
 
-  showBanner();
+  //showBanner();
 
   workspace.findFiles('**/.vscode/servers.json').then((uris: vscode.Uri[]) => {
     serverManager.enableEvents = false;

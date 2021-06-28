@@ -38,7 +38,6 @@ import {
   IServerConfigurationAttributes,
   ServerConfiguration,
 } from './serverConfiguration';
-import Utils from './utils';
 import { LS_ERROR_CODES, LS_MESSAGE_TYPE } from '@totvs/tds-languageclient';
 import {
   EventData,
@@ -51,6 +50,7 @@ import {
 const localize = nls.loadMessageBundle();
 const _homedir: string = require('os').homedir();
 const globalFolder: string = path.join(_homedir, '.totvsls');
+const SERVER_DEFINITION_FILE: string = 'servers.json';
 
 export interface ICompileKey {
   path: string;
@@ -92,12 +92,13 @@ export interface IServerManager {
   getServerDebugger(
     folder: string,
     debuggerServer: Partial<IServerDebugger>
-  ): IServerDebugger;
-  getServerMonitor(debuggerServer: Partial<IServerDebugger>): IServerMonitor;
-  readCompileKeyFile(path: string): IAuthorization;
-  getIncludes(folder: string, absolute: boolean): string[];
-  setIncludes(folder: string, includePath: string[]): void;
-}
+    ): IServerDebugger;
+    getServerMonitor(debuggerServer: Partial<IServerDebugger>): IServerMonitor;
+    readCompileKeyFile(path: string): IAuthorization;
+    getIncludes(folder: string, absolute: boolean): string[];
+    setIncludes(folder: string, includePath: string[]): void;
+    getServerFilename(): vscode.Uri;
+  }
 
 interface IServerDebuggerMethods {
   isConnected(): boolean;
@@ -163,11 +164,20 @@ class ServerManager implements IServerManager {
   constructor() {
     this.addServersDefinitionFile(
       vscode.Uri.joinPath(
-        vscode.Uri.parse('file:///' + globalFolder),
-        Utils.SERVER_DEFINITION_FILE
+        vscode.Uri.file(globalFolder),
+        SERVER_DEFINITION_FILE
       )
     );
   }
+
+  getServerFilename(): vscode.Uri {
+    if (TDSConfiguration.isGlobalServerFile()) {
+      return vscode.Uri.file(path.join(this.GLOBAL_FOLDER, SERVER_DEFINITION_FILE))
+    }
+
+    return vscode.Uri.file(path.join(this.GLOBAL_FOLDER, SERVER_DEFINITION_FILE));
+  }
+
   getRpoTokenInfos(): IRpoToken {
     throw new Error('Method not implemented.');
   }

@@ -63,11 +63,7 @@ export class ServersExplorer {
       vscode.commands.registerCommand(
       'totvs-developer-studio.config',
       (element: FolderTreeItem) => {
-        vscode.window.showTextDocument(
-          vscode.Uri.file(
-            path.join(element.folder, Utils.SERVER_DEFINITION_FILE)
-          )
-        );
+        vscode.window.showTextDocument(serverManager.getServerFile());
       }
     ));
 
