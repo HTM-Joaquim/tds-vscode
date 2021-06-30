@@ -57,9 +57,8 @@ export async function inputConnectionParameters(
   let CONNECT_SERVER_STEP = 1;
   let CONNECT_ENVIRONMENT_STEP = 2;
 
-  //@acandido
   const serversConfig = serverManager
-    .getConfigurations(serverManager.GLOBAL_FOLDER)
+    .getConfigurations()
     .getServers();
 
   const servers: QuickPickItem[] = serversConfig.map((element) => ({
@@ -82,7 +81,7 @@ export async function inputConnectionParameters(
     const state = {} as Partial<State>;
 
     if (serverParam instanceof ServerTreeItem) {
-      state.server = serverParam.id;
+      state.server = serverParam.server.id;
       CONNECT_TOTAL_STEPS -= 1;
       CONNECT_SERVER_STEP -= 1;
       CONNECT_ENVIRONMENT_STEP -= 1;
@@ -91,7 +90,7 @@ export async function inputConnectionParameters(
         pickEnvironment(input, state, serversConfig)
       );
     } else if (serverParam instanceof EnvironmentTreeItem) {
-      state.server = serverParam.parent.id;
+      state.server = serverParam.parent.server.id;
       state.environment = serverParam.label;
     } else {
       await MultiStepInput.run((input) =>

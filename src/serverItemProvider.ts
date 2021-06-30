@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { serverManager, IServerDebugger } from './serverManager';
-import { EventData, eventManager } from './event';
+import { EventData, eventManager, EventName } from './event';
 
 const HOME_DIR: string = require('os').homedir();
 const FOLDER_CONTEXT = 'folderTreeItem';
@@ -46,14 +46,15 @@ class ServerTreeItemProvider
     });
 
     eventManager.onDidChange((event: EventData) => {
-      // if (event.name === 'load') {
-      //   this.refresh();
+      if (event.name === EventName.load) {
+         this.clear();
+      }
       // } else if (event.name === 'add') {
       //   this.refresh();
       // } else if (event.name === 'change') {
       //   this.refresh();
       // } else if (event.name === 'remove') {
-        // }
+      // }
       this.refresh();
     });
   }
@@ -65,12 +66,12 @@ class ServerTreeItemProvider
   readonly onDidChangeTreeData: vscode.Event<ServerTreeItens | undefined> =
     this._onDidChangeTreeData.event;
 
-  refresh(): void {
-    this._onDidChangeTreeData.fire(undefined);
+  clear(): void {
+      this._serverTreeItems = undefined;
   }
 
-  get serverTreeItems(): Array<FolderTreeItem> {
-    return this._serverTreeItems;
+  refresh(): void {
+    this._onDidChangeTreeData.fire(undefined);
   }
 
   getTreeItem(element: ServerTreeItens): vscode.TreeItem {
@@ -97,12 +98,11 @@ class ServerTreeItemProvider
 
     if (!element) {
       this._serverTreeItems = this.populateFolderTree();
-      result = this._serverTreeItems;
-    } else if (element.contextValue === FOLDER_CONTEXT) {
-      const sti: FolderTreeItem = element as FolderTreeItem;
-      sti.servers = this.populateServerTree(sti);
-      result = [sti.includes, ...sortElement(sti.servers)];
-      sti.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
+      this._serverTreeItems.forEach((sti: FolderTreeItem) => {
+        sti.servers = this.populateServerTree(sti);
+        result = [sti.includes, ...sortElement(sti.servers)];
+        sti.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
+      });
     } else if (element.contextValue.startsWith(SERVER_CONTEXT)) {
       const sti: ServerTreeItem = element as ServerTreeItem;
       result = [sti.includeList, ...sortElement(sti.environments)];
@@ -142,7 +142,7 @@ class ServerTreeItemProvider
     const listServer: ServerTreeItem[] = [];
 
     serverManager
-      .getConfigurations(parent.folder)
+      .getConfigurations()
       .getServers()
       .forEach((element: IServerDebugger) => {
         const sti: ServerTreeItem = new ServerTreeItem(parent, element, {
@@ -197,11 +197,9 @@ class ServerTreeItemProvider
 
     if (parent.contextValue.startsWith(FOLDER_CONTEXT)) {
       const folder: FolderTreeItem = parent as FolderTreeItem;
-      serverManager
-        .getIncludes(folder.folder, false)
-        .forEach((value: string) => {
-          includeList.push(value);
-        });
+      serverManager.getIncludes(false).forEach((value: string) => {
+        includeList.push(value);
+      });
     } else {
       const server: ServerTreeItem = parent as ServerTreeItem;
       server.server.includes.forEach((value: string) => {
@@ -209,11 +207,9 @@ class ServerTreeItemProvider
       });
       if (includeList.length == 0) {
         isGlobal = true;
-        serverManager
-          .getIncludes(server.parent.folder, false)
-          .forEach((value: string) => {
-            includeList.push(value);
-          });
+        serverManager.getIncludes(false).forEach((value: string) => {
+          includeList.push(value);
+        });
       }
     }
 
@@ -231,15 +227,11 @@ class ServerTreeItemProvider
     stiIncludes.includes = [];
 
     includeList.forEach((value: string) => {
-      const stiInclude = new IncludeTreeItem(
-        stiIncludes,
-        value,
-        {
-          command: '',
-          title: '',
-          arguments: [],
-        }
-      );
+      const stiInclude = new IncludeTreeItem(stiIncludes, value, {
+        command: '',
+        title: '',
+        arguments: [],
+      });
       stiIncludes.includes.push(stiInclude);
     });
 
@@ -406,10 +398,7 @@ export class IncludeTreeItem extends vscode.TreeItem {
     public label: string,
     public readonly command?: vscode.Command
   ) {
-    super(
-      label,
-      vscode.TreeItemCollapsibleState.None
-    );
+    super(label, vscode.TreeItemCollapsibleState.None);
   }
 
   public getTooltip(): string {
@@ -456,7 +445,7 @@ export class IncludesTreeItem extends vscode.TreeItem {
       '..',
       'resources',
       'light',
-      this.global ? 'includes_global':'includes.png'
+      this.global ? 'includes_global' : 'includes.png'
     ),
     dark: path.join(
       __filename,
@@ -464,7 +453,7 @@ export class IncludesTreeItem extends vscode.TreeItem {
       '..',
       'resources',
       'dark',
-      this.global ? 'includes_global.png':'includes.png'
+      this.global ? 'includes_global.png' : 'includes.png'
     ),
   };
 

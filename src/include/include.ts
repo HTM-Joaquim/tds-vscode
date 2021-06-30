@@ -51,7 +51,7 @@ export default function showInclude(
 
     if (target instanceof FolderTreeItem) {
       const ti: FolderTreeItem = target as FolderTreeItem;
-      includes = serverManager.getIncludes(ti.folder, false);
+      includes = serverManager.getIncludes(false);
       folderStr = ti.folder;
     } else {
       const ti: ServerTreeItem = target as ServerTreeItem;
@@ -110,7 +110,7 @@ export default function showInclude(
 
             if (target instanceof FolderTreeItem) {
               const fti: FolderTreeItem = target as FolderTreeItem;
-              serverManager.setIncludes(fti.folder, includePath);
+              serverManager.setIncludes(includePath);
             } else {
               const sti: ServerTreeItem = target as ServerTreeItem;
               sti.server.includes = includePath;

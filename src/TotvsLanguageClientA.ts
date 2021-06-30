@@ -31,9 +31,11 @@ export class TotvsLanguageClientA extends LanguageClient {
       'totvsLanguageServer',
       'TOTVS Language Server',
       serverOptions,
-      clientOptions
+      clientOptions,
+      true
     );
   }
+
   registerBuiltinFeatures() {
     super.registerBuiltinFeatures();
   }

@@ -62,7 +62,7 @@ export default class WelcomePage {
 
       if (forcedShow) {
         //@acandido
-        const includePath = serverManager.getIncludes('', false);
+        const includePath = serverManager.getIncludes(false);
         currentPanel.webview.postMessage({
           command: 'setCurrentInclude',
           include: includePath,
@@ -80,9 +80,8 @@ export default class WelcomePage {
               });
               break;
             case 'welcomeClose':
-              //@acandido
-              serverManager.setIncludes('', message.includes);
-              //serverManager.smartClientBin = message.smartClientBin;
+              serverManager.setIncludes(message.includes);
+              serverManager.smartClientBin = message.smartClientBin;
 
               if (currentPanel) {
                 if (message.close) {

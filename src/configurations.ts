@@ -20,8 +20,9 @@ import stripJsonComments = require('strip-json-comments');
 import * as vscode from 'vscode';
 import { ICompileOptions } from '@totvs/tds-languageclient';
 
+const config = () => vscode.workspace.getConfiguration('totvsLanguageServer');
+
 export namespace TDSConfiguration {
-  const config = vscode.workspace.getConfiguration('totvsLanguageServer');
 
   /**
    * Retorna o path da pasta .vscode dentro do workspace
@@ -35,23 +36,23 @@ export namespace TDSConfiguration {
   function getExtensionsAllowed() {
     let extensionsAllowed: string[];
 
-    if (config.get('folder.enableExtensionsFilter', true)) {
-      extensionsAllowed = config.get('folder.extensionsAllowed', []); // Le a chave especifica
+    if (config().get('folder.enableExtensionsFilter', true)) {
+      extensionsAllowed = config().get('folder.extensionsAllowed', []); // Le a chave especifica
     }
 
     return extensionsAllowed;
   }
 
   function getGeneratePPO(): boolean {
-    return config.get('compilation.generatePpoFile');
+    return config().get('compilation.generatePpoFile');
   }
 
   function getShowPreCompiler(): boolean {
-    return config.get('compilation.showPreCompiler');
+    return config().get('compilation.showPreCompiler');
   }
 
   function getCommitWithErrorOrWarning(): boolean {
-    return config.get('compilation.commitWithErrorOrWarning');
+    return config().get('compilation.commitWithErrorOrWarning');
   }
 
   export function compileOptions(): ICompileOptions {
@@ -73,23 +74,23 @@ export namespace TDSConfiguration {
   }
 
   export function isReconnectLastServer(): boolean {
-    return config.get('reconnectLastServer');
+    return config().get('reconnectLastServer');
   }
 
   export function isClearConsoleBeforeCompile(): boolean {
-    return config.get('clearConsoleBeforeCompile');
+    return config().get('clearConsoleBeforeCompile');
   }
 
   export function isShowConsoleOnCompile(): boolean {
-    return config.get('showConsoleOnCompile');
+    return config().get('showConsoleOnCompile');
   }
 
   export function autocompleteBehavior(): boolean {
-    return config.get('editor.toggle.autocomplete');
+    return config().get('editor.toggle.autocomplete');
   }
 
   export function notificationLevel(): string {
-    return config.get('editor.show.notification');
+    return config().get('editor.show.notification');
   }
 
   /**
@@ -175,7 +176,12 @@ export namespace TDSConfiguration {
     }
   }
 
-  export function isGlobalServerFile() : boolean {
-    return true;
+  export function isWorkspaceServerConfig() : boolean {
+    return config().get('workspaceServerConfig');
   }
+
+  export function setWorkspaceServerConfig(value: boolean) : void {
+    config().update('workspaceServerConfig', value);
+  }
+
 }

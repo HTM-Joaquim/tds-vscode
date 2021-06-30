@@ -163,16 +163,13 @@ function createServer(
     includes: includes,
   };
 
-  const server: IServerDebugger = serverManager.getServerDebugger(
-    folder,
-    attributes
-  );
+  const server: IServerDebugger = serverManager.getServerDebugger(attributes);
 
   if (server) {
     server.validate().then(
       (result: boolean) => {
         if (result) {
-          serverManager.getConfigurations(folder).addServer(server);
+          serverManager.getConfigurations().addServer(server);
         }
         vscode.window.showInformationMessage(
           localize('tds.webview.serversView.serverSaved', 'Saved server ') +

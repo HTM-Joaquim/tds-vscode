@@ -190,6 +190,7 @@
     "onCommand:totvs-developer-studio.compile.key",
     "onCommand:totvs-developer-studio.templateApply",
     "onCommand:totvs-developer-studio.templateApply.fromFile",
+    "onCommand:totvs-developer-studio.toggleSaveLocation",
     "onView:totvs_server",
     "onView:testView",
     "workspaceContains:.tds",
@@ -507,6 +508,11 @@
           "default": "LS",
           "description": "%tds.package.editor.toggle.autocomplete%"
         },
+        "totvsLanguageServer.workspaceServerConfig": {
+          "type": "boolean",
+          "default": false,
+          "description": "%tds.package.workspaceServerConfig%"
+        },
         "4gl.formatter": {
           "type": "object",
           "description": "Formatação 4GL",
@@ -667,6 +673,11 @@
       {
         "command": "totvs-developer-studio.clearRpoToken",
         "title": "%tds.package.clearRpoToken%",
+        "category": "TOTVS"
+      },
+      {
+        "command": "totvs-developer-studio.toggleSaveLocation",
+        "title": "%tds.package.toggleSaveLocation%",
         "category": "TOTVS"
       },
       {

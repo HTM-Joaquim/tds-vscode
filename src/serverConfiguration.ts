@@ -1,4 +1,5 @@
 import path = require('path');
+import { Uri } from 'vscode';
 import { noKeyCompile } from './compileKey/compileKey';
 import { EventData, EventGroup, eventManager, EventName, EventProperty } from './event';
 import { IRpoToken, noRpoToken } from './rpoToken';
@@ -64,11 +65,11 @@ export class ServerConfiguration implements IServerConfiguration {
 
   private _includes: string[] = [];
   private readonly parent: IServerManager;
-  private readonly file: string;
+  private readonly file: Uri;
 
   constructor(
     manager: IServerManager,
-    file: string,
+    file: Uri,
     attributes: IServerConfigurationAttributes
   ) {
     this.parent = manager;

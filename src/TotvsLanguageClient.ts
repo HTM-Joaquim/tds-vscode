@@ -44,7 +44,7 @@ export function getLanguageClient(
   let clientConfig = getClientConfig(context);
 
   context.subscriptions.push(
-    workspace.onDidChangeConfiguration(() => {
+    workspace.onDidChangeConfiguration(() => { //@acandido adicionar evento
       for (let key in clientConfig) {
         if (!clientConfig.hasOwnProperty(key)) {
           continue;
@@ -149,7 +149,7 @@ function getClientConfig(context: ExtensionContext) {
   }
   let configMapping = [['launchArgs', 'launch.args']];
   let clientConfig = {};
-  let config = workspace.getConfiguration('totvsLanguageServer');
+  let config = workspace.getConfiguration('totvsLanguageServer');//@acandido
   for (let prop of configMapping) {
     let value = config.get(prop[1]);
     if (value !== undefined && value !== null) {

@@ -24,13 +24,18 @@ const relativePattern = new vscode.RelativePattern(
 );
 
 class ServerJsonFileWatcher {
-  private watchers: (vscode.FileSystemWatcher | fs.FSWatcher)[] = [];
+  private watchers: Map<string, vscode.FileSystemWatcher> = new Map<string, vscode.FileSystemWatcher>();
+
+  removeFile(target: string) {
+    const folder: string = target.substr(0, target.lastIndexOf(path.sep));
+
+    this.watchers.delete(folder);
+  }
 
   addFile(target: string, listener: any) {
     const folder: string = target.substr(0, target.lastIndexOf(path.sep));
     const file: string = target.substr(target.lastIndexOf(path.sep) + 1);
 
-    //if (wsFolder) {
     const pattern: vscode.RelativePattern = new vscode.RelativePattern(
       folder,
       file
@@ -41,21 +46,8 @@ class ServerJsonFileWatcher {
     watcher.onDidChange(listener);
     watcher.onDidCreate(listener);
     watcher.onDidDelete(listener);
-    // } else {
-    //   watcher = fs.watch(
-    //     file.toString(),
-    //     { encoding: 'buffer' },
-    //     (eventType, filename) => {
-    //       const file: string = path.join(
-    //         file.toString(),
-    //         filename.toString()
-    //       );
-    //       listener(eventType, file);
-    //     }
-    //   );
-    // }
 
-    this.watchers.push(watcher);
+    this.watchers.set(folder, watcher);
   }
 }
 

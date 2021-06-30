@@ -15,7 +15,9 @@ let permissionStatusBarItem: vscode.StatusBarItem;
 let settingsStatusBarItem: vscode.StatusBarItem;
 let rpoTokenStatusBarItem: vscode.StatusBarItem;
 let clearRpoTokenStatusBarItem: vscode.StatusBarItem;
+let saveLocationBarItem: vscode.StatusBarItem;
 
+const prioritySaveLocationBarItem: number = 104;
 const priorityTotvsStatusBarItem: number = 103;
 const priorityRpoTokenStatusBarItem: number = 102;
 const priorityPermissionStatusBarItem: number = 101;
@@ -26,15 +28,16 @@ export function initStatusBarItems(context: vscode.ExtensionContext) {
   initPermissionStatusBarItem(context);
   initRpoTokenStatusBarItem(context);
   initSettingsBarItem(context);
-}
+  initSaveLocationBarItem(context);
 
-// function updateStatusBarItems() {
-//   updateStatusBarItem(undefined);
-//   updateSaveLocationBarItem();
-//   updatePermissionStatusBarItem();
-//   updateRpoTokenStatusBarItem();
-//   updateSettingsBarItem();
-// }
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(() => {
+      updateSaveLocationBarItem();
+      updateSettingsBarItem();
+    })
+  );
+
+}
 
 function initStatusBarItem(context: vscode.ExtensionContext) {
   currentServerBarItem = vscode.window.createStatusBarItem(
@@ -164,6 +167,7 @@ function initRpoTokenStatusBarItem(context: vscode.ExtensionContext) {
       }
     })
   );
+
   clearRpoTokenStatusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
     priorityRpoTokenStatusBarItem
@@ -201,6 +205,7 @@ function initSettingsBarItem(context: vscode.ExtensionContext): void {
     vscode.StatusBarAlignment.Right,
     prioritySettingsStatusBarItem
   );
+
   context.subscriptions.push(settingsStatusBarItem);
 }
 
@@ -238,4 +243,40 @@ function buildTooltipRpoToken(
   }
 
   return result;
+}
+
+function initSaveLocationBarItem(context: vscode.ExtensionContext) {
+  saveLocationBarItem = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left,
+    prioritySaveLocationBarItem
+  );
+  saveLocationBarItem.command = 'totvs-developer-studio.toggleSaveLocation';
+
+  context.subscriptions.push(
+    saveLocationBarItem,
+    eventManager.onDidChange((event: EventData) => {
+      if (
+        event.name.toString() === 'change' &&
+        event.property.toString() === 'saveLocation'
+      ) {
+        updateSaveLocationBarItem();
+      }
+    })
+  );
+
+  updateSaveLocationBarItem();
+}
+
+function updateSaveLocationBarItem() {
+  const workspace: boolean = TDSConfiguration.isWorkspaceServerConfig();
+  const location: vscode.Uri = serverManager.getServerConfigFile();
+
+  if (workspace) {
+    saveLocationBarItem.text = '$(globe)';
+  } else {
+    saveLocationBarItem.text = '$(home)';
+  }
+  saveLocationBarItem.tooltip = location.toString(true);
+
+  saveLocationBarItem.show();
 }

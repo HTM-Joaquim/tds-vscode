@@ -49,7 +49,6 @@ import {
 
 const localize = nls.loadMessageBundle();
 const _homedir: string = require('os').homedir();
-const globalFolder: string = path.join(_homedir, '.totvsls');
 const SERVER_DEFINITION_FILE: string = 'servers.json';
 
 export interface ICompileKey {
@@ -72,11 +71,13 @@ export interface IAuthorization {
 }
 
 export interface IServerManager {
-  GLOBAL_FOLDER: string;
   enableEvents: boolean;
   folders: string[];
   currentServer: IServerDebugger;
+  smartClientBin: string;
 
+  setServersDefinitionFile(file: vscode.Uri): void;
+  toggleWorkspaceServerConfig(): void;
   deletePermissionsInfos(): void;
   savePermissionsInfos(infos: ICompileKey): void;
   getPermissionsInfos(): ICompileKey;
@@ -84,21 +85,17 @@ export interface IServerManager {
   getRpoTokenInfos(): IRpoToken;
   deleteRpoTokenInfos(): void;
   isSafeRPO(server: IServerDebugger): boolean;
-  addServersDefinitionFile(file: vscode.Uri): void;
-  getConfigurations(folder: string): IServerConfiguration;
+  getConfigurations(): IServerConfiguration;
   isConnected(server: IServerDebugger): boolean;
-  saveToFile(file: string, content: IServerConfigurationAttributes): void;
+  saveToFile(file: vscode.Uri, content: IServerConfigurationAttributes): void;
   isIgnoreResource(file: string): boolean;
-  getServerDebugger(
-    folder: string,
-    debuggerServer: Partial<IServerDebugger>
-    ): IServerDebugger;
-    getServerMonitor(debuggerServer: Partial<IServerDebugger>): IServerMonitor;
-    readCompileKeyFile(path: string): IAuthorization;
-    getIncludes(folder: string, absolute: boolean): string[];
-    setIncludes(folder: string, includePath: string[]): void;
-    getServerFilename(): vscode.Uri;
-  }
+  getServerDebugger(debuggerServer: Partial<IServerDebugger>): IServerDebugger;
+  getServerMonitor(debuggerServer: Partial<IServerDebugger>): IServerMonitor;
+  readCompileKeyFile(path: string): IAuthorization;
+  getIncludes(absolute: boolean): string[];
+  setIncludes(includePath: string[]): void;
+  getServerConfigFile(): vscode.Uri;
+}
 
 interface IServerDebuggerMethods {
   isConnected(): boolean;
@@ -136,13 +133,13 @@ export declare type IServerMonitor = TLSServerMonitor &
   IServerMonitorAttributes &
   IServerMonitorMethods;
 
-class ServerManager implements IServerManager {
-  GLOBAL_FOLDER = path.join(_homedir, '.totvsls');
+const GLOBAL_FOLDER: vscode.Uri = vscode.Uri.joinPath(
+  vscode.Uri.file(_homedir),
+  '.totvsls'
+);
 
-  private _configMap: Map<string, IServerConfiguration> = new Map<
-    string,
-    IServerConfiguration
-  >();
+class ServerManager implements IServerManager {
+  private _configMap: IServerConfiguration;
   private _currentServer: IServerDebugger;
   private _enableEvents: boolean = true;
   private _loadInProgress: boolean;
@@ -162,35 +159,40 @@ class ServerManager implements IServerManager {
   readonly onDidChange: vscode.Event<EventData> = eventManager.onDidChange;
 
   constructor() {
-    this.addServersDefinitionFile(
-      vscode.Uri.joinPath(
-        vscode.Uri.file(globalFolder),
-        SERVER_DEFINITION_FILE
-      )
-    );
+    this.setServersDefinitionFile(this.getServerConfigFile());
+
+    vscode.workspace.onDidChangeConfiguration((e:vscode.ConfigurationChangeEvent) => {
+      if (e.affectsConfiguration) { //@acandido
+        this.setServersDefinitionFile(this.getServerConfigFile());
+      }
+    })
   }
 
-  getServerFilename(): vscode.Uri {
-    if (TDSConfiguration.isGlobalServerFile()) {
-      return vscode.Uri.file(path.join(this.GLOBAL_FOLDER, SERVER_DEFINITION_FILE))
-    }
+  toggleWorkspaceServerConfig(): void {
+    const oldFile: vscode.Uri = this.getServerConfigFile();
 
-    return vscode.Uri.file(path.join(this.GLOBAL_FOLDER, SERVER_DEFINITION_FILE));
+    serverJsonFileWatcher.removeFile(oldFile.fsPath);
+
+    TDSConfiguration.setWorkspaceServerConfig(
+      !TDSConfiguration.isWorkspaceServerConfig()
+    );
+
   }
 
   getRpoTokenInfos(): IRpoToken {
     throw new Error('Method not implemented.');
   }
+
   deleteRpoTokenInfos(): void {
     throw new Error('Method not implemented.');
   }
 
-  getIncludes(folder: string, absolute: boolean): string[] {
-    return this.getConfigurations(folder).includes;
+  getIncludes(absolute: boolean): string[] {
+    return this.getConfigurations().includes;
   }
 
-  setIncludes(folder: string, includePath: string[]): void {
-    this.getConfigurations(folder).includes = includePath;
+  setIncludes(includePath: string[]): void {
+    this.getConfigurations().includes = includePath;
   }
 
   fireEvent(name: EventName, property: EventProperty, value: any) {
@@ -204,17 +206,17 @@ class ServerManager implements IServerManager {
   }
 
   getPermissionsInfos(): ICompileKey {
-    const config: IServerConfiguration = this.getConfigurations(globalFolder);
+    const config: IServerConfiguration = this.getConfigurations();
     return config.getPermissions();
   }
 
   savePermissionsInfos(infos: ICompileKey) {
-    const config: IServerConfiguration = this.getConfigurations(globalFolder);
+    const config: IServerConfiguration = this.getConfigurations();
     config.savePermissions(infos);
   }
 
   saveRpoTokenInfos(infos: IRpoToken) {
-    const config: IServerConfiguration = this.getConfigurations(globalFolder);
+    const config: IServerConfiguration = this.getConfigurations();
     config.saveRpoToken(infos);
   }
 
@@ -231,15 +233,11 @@ class ServerManager implements IServerManager {
   get folders(): string[] {
     const result: string[] = [];
 
-    for (let key of this._configMap.keys()) {
-      result.push(key);
-    }
-
-    return result;
+    return [this.getServerConfigPath().fsPath];
   }
 
-  getConfigurations(folder: string): IServerConfiguration {
-    return this._configMap.get(folder);
+  getConfigurations(): IServerConfiguration {
+    return this._configMap;
   }
 
   get currentServer(): IServerDebugger {
@@ -276,8 +274,9 @@ class ServerManager implements IServerManager {
     return undefined;
   }
 
-  addServersDefinitionFile(file: vscode.Uri): void {
+  setServersDefinitionFile(file: vscode.Uri): void {
     this.doLoad(file);
+
     serverJsonFileWatcher.addFile(file.fsPath, (fileUri: vscode.Uri) => {
       this.doLoad(fileUri);
     });
@@ -294,15 +293,15 @@ class ServerManager implements IServerManager {
       const config: IServerConfigurationAttributes = this.loadFromFile(file);
       const serverConfig: IServerConfiguration = new ServerConfiguration(
         this,
-        file.fsPath,
+        file,
         config
       );
-      this._configMap.set(folder, serverConfig);
+      this._configMap = serverConfig;
       this._loadInProgress = false;
 
       this.fireEvent(EventName.load, EventProperty.servers, {
         old: undefined,
-        new: this._configMap[folder],
+        new: this._configMap,
       });
     }
   }
@@ -344,11 +343,7 @@ class ServerManager implements IServerManager {
     //anterior a 07/05/21
     if (config.hasOwnProperty('configurations')) {
       config.configurations.forEach((element: any, index: number) => {
-        const server: IServerDebugger = this.getServerDebugger(
-          file.fsPath,
-          element,
-          true
-        );
+        const server: IServerDebugger = this.getServerDebugger(element, true);
         config.configurations[index] = server;
       });
     } else {
@@ -363,7 +358,7 @@ class ServerManager implements IServerManager {
    * @param file - target file
    * @param attributes - json format attributes to save
    */
-  saveToFile(file: string, attributes: IServerConfigurationAttributes) {
+  saveToFile(file: vscode.Uri, attributes: IServerConfigurationAttributes) {
     if (!this._loadInProgress) {
       vscode.window.withProgress(
         {
@@ -376,8 +371,8 @@ class ServerManager implements IServerManager {
           return new Promise<void>((resolve) => {
             const toSave: string[] = this.getPropsToSave(attributes);
             let content: string = JSON.stringify(attributes, toSave, '\t');
-            content = content.replace(/"_/g, '"') ;
-            fs.writeFileSync(file, content);
+            content = content.replace(/"_/g, '"');
+            fs.writeFileSync(file.fsPath, content);
 
             resolve();
           });
@@ -409,7 +404,6 @@ class ServerManager implements IServerManager {
    * Cria uma nova configuracao de servidor debugger
    */
   private createServerDebugger(
-    folder: string,
     id: string,
     type: LSServerType.LS_SERVER_TYPE,
     serverName: string,
@@ -419,10 +413,12 @@ class ServerManager implements IServerManager {
     secure: boolean,
     includes: string[]
   ): IServerDebugger {
-    if (this._configMap[folder]) {
-      const servers = this._configMap[folder].configurations;
+    const config: IServerConfiguration = this.getConfigurations();
 
-      if (
+    if (config) {
+      const servers = config.getServers();
+
+      if (!this._loadInProgress &&
         servers.some((element: IServerDebugger) => {
           return element.name === serverName;
         })
@@ -455,7 +451,7 @@ class ServerManager implements IServerManager {
     };
 
     const newServer: ServerDebugger = new ServerDebugger(
-      this._configMap[folder],
+      config,
       id || this.generateUUID(),
       serverName,
       serverOptions
@@ -468,13 +464,8 @@ class ServerManager implements IServerManager {
   /**
    * Cria indicação de erro na carga
    */
-  private createServerError(
-    folder: string,
-    serverName: string,
-    error: any
-  ): IServerDebugger {
+  private createServerError(serverName: string, error: any): IServerDebugger {
     const server: IServerDebugger = this.createServerDebugger(
-      folder,
       null,
       LSServerType.LS_SERVER_TYPE.UNDEFINED,
       serverName,
@@ -523,7 +514,6 @@ class ServerManager implements IServerManager {
   }
 
   getServerDebugger(
-    folder: string,
     debuggerServer: Partial<IServerDebuggerAttributes>,
     load: boolean = false
   ): IServerDebugger {
@@ -532,18 +522,20 @@ class ServerManager implements IServerManager {
     let server: IServerDebugger = undefined;
 
     if (!load) {
-      // const servers = this._configMap[globalFolder].configurations;
-      // server = servers.some((element: IServerDebugger) => {
-      //   return target.id
-      //     ? element.id === target.id
-      //     : element.name === target.name;
-      // });
+      const config: IServerConfiguration = this.getConfigurations();
+      server = config.configurations
+        .filter((element: IServerDebugger) => {
+          return target.id
+            ? element.id === target.id
+            : element.name === target.name;
+        })
+        .values()
+        .return().value;
     }
 
     if (!server) {
       try {
         server = this.createServerDebugger(
-          folder,
           target.id,
           target.type,
           target.name,
@@ -554,7 +546,7 @@ class ServerManager implements IServerManager {
           debuggerServer.includes
         );
       } catch (error) {
-        server = this.createServerError(folder, target.name, error);
+        server = this.createServerError(target.name, error);
       }
     }
 
@@ -598,33 +590,65 @@ class ServerManager implements IServerManager {
     }
   }
 
-  // set smartClientBin(smartClient: string) {
-  //   const oldValue: string = this._configMap[globalFolder].smartClientBin;
-  //   this._configMap[globalFolder].smartClientBin = smartClient;
+  set smartClientBin(smartClient: string) {
+    const config: IServerConfiguration = this.getConfigurations();
 
-  //   this.fireEvent(EventSenderName.serverManager, 'change', 'smartClientBin', {
-  //     old: oldValue,
-  //     new: this._configMap[globalFolder].smartClientBin,
-  //   });
-  // }
+    const oldValue: string = config.smartClientBin;
+    config.smartClientBin = smartClient;
 
-  // get smartClientBin(): string {
-  //   return this._configMap[globalFolder].smartClientBin;
-  // }
+    this.fireEvent(EventName.change, EventProperty.all, {
+      old: oldValue,
+      new: config.smartClientBin,
+    });
+  }
+
+  get smartClientBin(): string {
+    const config: IServerConfiguration = this.getConfigurations();
+
+    return config.smartClientBin;
+  }
 
   reconnectLastServer() {
     if (TDSConfiguration.isReconnectLastServer()) {
-      if (this._configMap[globalFolder].lastConnectedServer) {
-        // this.servers.some((element: IServerDebugger) => {
-        //   if (
-        //     element.id === this._configMap[globalFolder].lastConnectedServer
-        //   ) {
-        //     return element.reconnect();
-        //   }
-        // });
+      const config: IServerConfiguration = this.getConfigurations();
+
+      if (config.lastConnectedServer) {
+        config.configurations.some((element: IServerDebugger) => {
+          if (element.id === config.lastConnectedServer) {
+            return element.reconnect();
+          }
+        });
       }
     }
   }
+
+  /**
+   * Retorna o path completo do servers.json
+   */
+  getServerConfigFile(): vscode.Uri {
+    return vscode.Uri.joinPath(
+      this.getServerConfigPath(),
+      SERVER_DEFINITION_FILE
+    );
+  }
+
+  /**
+   * Retorna o path de onde deve ficar o servers.json
+   */
+  getServerConfigPath(): vscode.Uri {
+    return TDSConfiguration.isWorkspaceServerConfig()
+      ? getVSCodePath()
+      : GLOBAL_FOLDER;
+  }
+}
+
+/**
+ * Retorna o path da pasta .vscode dentro do workspace
+ */
+function getVSCodePath(): vscode.Uri {
+  let rootPath: string = vscode.workspace.rootPath || process.cwd();
+
+  return vscode.Uri.joinPath(vscode.Uri.file(rootPath), '.vscode');
 }
 
 //TODO: pegar a lista de arquivos a ignorar da configuração

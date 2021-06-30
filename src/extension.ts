@@ -108,12 +108,12 @@ export function activate(context: ExtensionContext) {
     )
   );
 
-  TDSConfiguration.createLaunchConfig();
-
   //Load Language Client and start Language Server
   let p2c: Converter;
   const languageClient: TotvsLanguageClientA = getLanguageClient(context);
-  // context.subscriptions.push(languageClient.start());
+  context.subscriptions.push(languageClient.start());
+
+  TDSConfiguration.createLaunchConfig();
 
   //Ativação DAP
   registerDap(context);
@@ -572,6 +572,16 @@ export function activate(context: ExtensionContext) {
     })
   );
 
+  //Troca rápida do local de salva do servers.json.
+  context.subscriptions.push(
+    commands.registerCommand(
+      'totvs-developer-studio.toggleSaveLocation',
+      () => {
+        serverManager.toggleWorkspaceServerConfig();
+      }
+    )
+  );
+
   //Compile key
   commands.registerCommand('totvs-developer-studio.compile.key', () =>
     compileKeyPage(context)
@@ -637,15 +647,15 @@ export function activate(context: ExtensionContext) {
 
   //showBanner();
 
-  workspace.findFiles('**/.vscode/servers.json').then((uris: vscode.Uri[]) => {
-    serverManager.enableEvents = false;
+  // workspace.findFiles('**/.vscode/servers.json').then((uris: vscode.Uri[]) => {
+  //   serverManager.enableEvents = false;
 
-    uris.forEach((uri: vscode.Uri) => {
-      serverManager.addServersDefinitionFile(uri);
-    });
+  //   uris.forEach((uri: vscode.Uri) => {
+  //     serverManager.addServersDefinitionFile(uri);
+  //   });
 
-    serverManager.enableEvents = true;
-  });
+  //   serverManager.enableEvents = true;
+  // });
 
   workspace.onDidChangeWorkspaceFolders(
     (event: vscode.WorkspaceFoldersChangeEvent) => {
@@ -668,7 +678,9 @@ export function activate(context: ExtensionContext) {
   };
 
   const endActivate: Date = new Date();
-console.log("endActivate " + (endActivate.getTime() - startActivate.getTime()));
+  console.log(
+    'endActivate ' + (endActivate.getTime() - startActivate.getTime())
+  );
   // 'export' public api-surface
   return exportedApi;
 }
@@ -687,7 +699,6 @@ export function deactivate() {
 }
 
 function registerLog(context: vscode.ExtensionContext): vscode.Disposable {
-
   const c1 = commands.registerCommand('totvs-developer-studio.logger.on', () =>
     onCaptureLoggers(context)
   );
@@ -696,11 +707,12 @@ function registerLog(context: vscode.ExtensionContext): vscode.Disposable {
     offCaptureLoggers()
   );
 
-  const c3 = commands.registerCommand('totvs-developer-studio.toggleTableSync', () =>
-    toggleTableSync()
+  const c3 = commands.registerCommand(
+    'totvs-developer-studio.toggleTableSync',
+    () => toggleTableSync()
   );
 
-  return vscode.Disposable.from(c1,c2,c3);
+  return vscode.Disposable.from(c1, c2, c3);
 }
 
 /*

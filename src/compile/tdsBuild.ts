@@ -51,7 +51,7 @@ export function generatePpo(filePath: string, options?: any): Promise<string> {
 
     //@acandido
     const includes: string[] =
-      server.includes || serverManager.getIncludes('', true);
+      server.includes || serverManager.getIncludes(true);
     const compileOptions = getCompileOptions({
       filesUris: [vscode.Uri.file(filePath).toString()],
       includesUris: server.includes || [],
@@ -208,7 +208,7 @@ async function buildCode(
   //@acandido
   const compileOptions = getCompileOptions({
     filesUris: filesUris,
-    includesUris: server.includes || serverManager.getIncludes('', true) || [],
+    includesUris: server.includes || serverManager.getIncludes(true) || [],
     ...options,
   });
 

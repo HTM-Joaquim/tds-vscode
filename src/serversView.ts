@@ -63,7 +63,7 @@ export class ServersExplorer {
       vscode.commands.registerCommand(
       'totvs-developer-studio.config',
       (element: FolderTreeItem) => {
-        vscode.window.showTextDocument(serverManager.getServerFile());
+        vscode.window.showTextDocument(serverManager.getServerConfigFile());
       }
     ));
 
@@ -116,7 +116,7 @@ export class ServersExplorer {
       (serverItem: ServerTreeItem) => {
         const server: IServerDebugger = serverItem.server;
         const folder: FolderTreeItem = serverItem.parent;
-        serverManager.getConfigurations(folder.folder).deleteServer(server);
+        serverManager.getConfigurations().deleteServer(server);
       }
     ));
 
