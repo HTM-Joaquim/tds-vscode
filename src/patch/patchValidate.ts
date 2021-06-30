@@ -6,11 +6,12 @@ import compile = require('template-literal');
 import * as nls from 'vscode-nls';
 import { ResponseError } from 'vscode-languageclient/node';
 import { _debugEvent } from '../debug';
-import { IServerDebugger, serverManager } from '../serverManager';
+import { serverManager } from '../serverManager';
 import {
   IResponseStatus,
   IPatchValidateResult,
 } from '@totvs/tds-languageclient';
+import { IServerDebugger } from '../serverManager';
 
 let localize = nls.loadMessageBundle();
 let patchValidatesData: any;
@@ -157,25 +158,13 @@ function exportPatchValidate() {
   }
 }
 
-function sendPatchValidate(patchFile, server, currentPanel) {
+function sendPatchValidate(patchFile: string, server: IServerDebugger, currentPanel) {
 	if (_debugEvent) {
 		vscode.window.showWarningMessage("Esta operação não é permitida durante uma depuração.")
 		return;
 	}
 	const patchURI = vscode.Uri.file(patchFile).toString();
-	const permissionsInfos = Utils.getPermissionsInfos();
-	languageClient
-	  .sendRequest('$totvsserver/patchApply', {
-		patchApplyInfo: {
-		  connectionToken: server.token,
-		  authorizationToken: Utils.getAuthorizationToken(server),
-		  environment: server.environment,
-		  patchUri: patchURI,
-		  isLocal: true,
-		  isValidOnly: true,
-		  applyScope: "none",
-		},
-	  }).then((response: any) => {
+	server.applyPatch(patchURI, "none").then((response: any) => {
 		const errorMessage = response.message;
 		if (errorMessage) {
 			vscode.window.showWarningMessage(errorMessage);

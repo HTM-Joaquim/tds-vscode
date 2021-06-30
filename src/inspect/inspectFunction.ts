@@ -1,12 +1,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import Utils from '../utils';
-import { languageClient } from '../extension';
-const compile = require('template-literal');
 import * as nls from 'vscode-nls';
 import { ResponseError } from 'vscode-languageclient/node';
 import { serverManager } from '../serverManager';
+import { IInspectorFunctionsResult } from '../../../tds-languageclient/typings/src/protocolTypes';
+const compile = require('template-literal');
 let localize = nls.loadMessageBundle();
 
 const localizeHTML = {
@@ -102,15 +101,9 @@ export function inspectFunctions(context: vscode.ExtensionContext) {
       (message) => {
         switch (message.command) {
           case 'inspectorFunctions': //@acandido
-            languageClient
-              .sendRequest('$totvsserver/inspectorFunctions', {
-                inspectorFunctionsInfo: {
-                  connectionToken: server.token,
-                  environment: server.environment,
-                },
-              })
+            server.inspectorFunctions()
               .then(
-                (response: InspectorFunctionResult) => {
+                (response: IInspectorFunctionsResult) => {
                   currentPanel.webview.postMessage(response.functions);
                 },
                 (err: ResponseError<object>) => {
@@ -183,7 +176,3 @@ function getWebViewContent(context: vscode.ExtensionContext, localizeHTML) {
   return runTemplate({ css: cssContent, localize: localizeHTML });
 }
 
-class InspectorFunctionResult {
-  message: string;
-  functions: Array<string>;
-}

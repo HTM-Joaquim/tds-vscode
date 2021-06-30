@@ -1,17 +1,16 @@
 import * as vscode from 'vscode';
-import { languageClient } from '../extension';
 import * as fs from 'fs';
 import Utils from '../utils';
 import { showCompileResult } from './buildResult';
-
-var windows1252 = require('windows-1252');
-var windows1251 = require('windows-1251');
-
 import * as nls from 'vscode-nls';
 import { ResponseError } from 'vscode-languageclient/node';
 import { IServerDebugger, serverManager } from '../serverManager';
 import { ICompileResult, ICompileOptions } from '@totvs/tds-languageclient';
 import { TDSConfiguration } from '../configurations';
+import { _languageClient } from '../extension';
+
+const windows1252 = require('windows-1252');
+const windows1251 = require('windows-1251');
 let localize = nls.loadMessageBundle();
 
 function getCompileOptions(
@@ -139,11 +138,11 @@ async function buildCode(
   }
 
   if (TDSConfiguration.isClearConsoleBeforeCompile()) {
-    languageClient.outputChannel.clear();
+    _languageClient.outputChannel.clear();
   }
 
   if (TDSConfiguration.isShowConsoleOnCompile()) {
-    languageClient.outputChannel.show();
+    _languageClient.outputChannel.show();
   }
 
   const count: number = vscode.workspace.textDocuments.filter(
@@ -196,7 +195,7 @@ async function buildCode(
     if (!serverManager.isIgnoreResource(file)) {
       filesUris.push(vscode.Uri.file(file).toString());
     } else {
-      languageClient.warn(
+      _languageClient.warn(
         localize(
           'tds.webview.tdsBuild.resourceInList',
           'Resource appears in the list of files to ignore. Resource: {0}',

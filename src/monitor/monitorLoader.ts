@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { MonitorPanelAction, IMonitorPanelAction } from './actions';
-import { languageClient } from '../extension';
 import * as nls from 'vscode-nls';
 import {
   IGetUsersData,
@@ -521,24 +520,25 @@ export class MonitorLoader {
               doScheduler();
             },
             (err: Error) => {
-              languageClient.error(err.message, err);
+              //languageClient.error(err.message, err); // @acandido
               vscode.window.showErrorMessage(
                 err.message + localize('SEE_LOG', '. See log for details.')
               );
 
               if (this.speed > 0) {
-                languageClient.info(
-                  localize(
-                    'AUTOMATIC_UPDATE_STOPPED',
-                    'Automatic update stopped.'
-                  )
-                );
-                languageClient.info(
-                  localize(
-                    'PLEASE_CLICK_REACTIVATE',
-                    'Please click on [Update] to reactivate.'
-                  )
-                );
+                // @acandido
+                // languageClient.info(
+                //   localize(
+                //     'AUTOMATIC_UPDATE_STOPPED',
+                //     'Automatic update stopped.'
+                //   )
+                // );
+                // languageClient.info(
+                //   localize(
+                //     'PLEASE_CLICK_REACTIVATE',
+                //     'Please click on [Update] to reactivate.'
+                //   )
+                // );
               }
             }
           )

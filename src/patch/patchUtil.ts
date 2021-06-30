@@ -16,26 +16,16 @@ limitations under the License.
 import * as vscode from "vscode";
 import { ResponseError } from "vscode-languageclient";
 import { _debugEvent } from "../debug";
-import { languageClient } from "../extension";
+import { IServerDebugger } from "../serverManager";
 import { PatchResult } from "./patchGenerate";
 
-export function sendPatchGenerateMessage(server, patchMaster, patchDest, patchType, patchName, filesPath) {
-	return languageClient.sendRequest('$totvsserver/patchGenerate', {
-		"patchGenerateInfo": {
-			connectionToken: server.token,
-			authorizationToken: server.getAuthorizationToken(),
-			environment: server.environment,
-			patchMaster: patchMaster,
-			patchDest: patchDest,
-			isLocal: true,
-			patchType: patchType,
-			name: patchName,
-			patchFiles: filesPath
-		}
-	}).then((response: PatchResult) => {
-		if (response.returnCode === 40840) { // AuthorizationTokenExpiredError
-			server.removeExpiredAuthorization();
-		}
+export function sendPatchGenerateMessage(server: IServerDebugger, patchMaster, patchDest, patchType, patchName, filesPath) {
+
+	return server.patchGenerate(patchMaster, patchDest, patchType, patchName, filesPath, '') //@acandido authorizationToken
+	.then((response: PatchResult) => {
+		// if (response.returnCode === 40840) { // AuthorizationTokenExpiredError
+		// 	server.removeExpiredAuthorization();
+		// }
 		return response;
 	}, (err: ResponseError<object>) => {
 		vscode.window.showErrorMessage(err.message);

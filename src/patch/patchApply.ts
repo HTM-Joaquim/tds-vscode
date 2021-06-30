@@ -3,10 +3,10 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import Utils from '../utils';
-import { languageClient } from '../extension';
 import * as nls from 'vscode-nls';
 import { ResponseError } from 'vscode-languageclient';
 import JSZip = require('jszip');
+import { IServerDebugger, serverManager } from '../serverManager';
 
 let localize = nls.loadMessageBundle();
 const compile = require('template-literal');
@@ -32,15 +32,9 @@ export function patchApply(
   if (currentPanel) {
     currentPanel.reveal();
   } else {
-    const server = Utils.getCurrentServer();
+    const server: IServerDebugger = serverManager.currentServer;
 
     if (server) {
-      const allInfoServer: any = Utils.getServerById(server.id);
-
-      if (allInfoServer) {
-        server.address = allInfoServer.address;
-        server.port = allInfoServer.port;
-      }
 
       if (!isWorkspace) {
         currentPanel = vscode.window.createWebviewPanel(
@@ -82,33 +76,18 @@ export function patchApply(
                     )
                   );
                 } else {
-                  //vscode.window.showInformationMessage(localize("tds.webview.patch.apply.start","Started Patch Apply"));
-                  const permissionsInfos = Utils.getPermissionsInfos();
-
                   message.patchFile.forEach(async (element, index) => {
                     const patchUri = vscode.Uri.file(element).toString();
-                    languageClient.info(
-                      `Applying ${patchUri} (${index}/${message.patchFile.length})`
-                    );
-                    await languageClient
-                      .sendRequest('$totvsserver/patchApply', {
-                        patchApplyInfo: {
-                          connectionToken: server.token,
-                          authorizationToken:
-                          Utils.getAuthorizationToken(server),
-                          environment: server.environment,
-                          patchUri: patchUri,
-                          isLocal: true,
-                          isValidOnly: false,
-                          applyScope: message.applyOld ? "all" : "only_new",
-                        },
-                      })
+                    // languageClient.info( // @acandido
+                    //   `Applying ${patchUri} (${index}/${message.patchFile.length})`
+                    // );
+                    await server.applyPatch(patchUri, message.applyOld ? "all" : "only_new")
                       .then(
                         (response: any) => {
-                          if (response.returnCode === 40840) {
-                            // AuthorizationTokenExpiredError
-                            Utils.removeExpiredAuthorization();
-                          }
+                          // if (response.returnCode === 40840) { // @acandido
+                          //   // AuthorizationTokenExpiredError
+                          //   Utils.removeExpiredAuthorization();
+                          // }
                           if (response.error == 1) {
                             vscode.window.showErrorMessage(
                               localize(
@@ -215,25 +194,13 @@ export function patchApply(
             .then((clicked) => {
               if (clicked === localize('tds.vscode.yes', 'Yes')) {
                 const patchUri = vscode.Uri.file(patchFile).toString();
-                const permissionsInfos = Utils.getPermissionsInfos();
-                languageClient
-                  .sendRequest('$totvsserver/patchApply', {
-                    patchApplyInfo: {
-                      connectionToken: server.token,
-                      authorizationToken: Utils.getAuthorizationToken(server),
-                      environment: server.environment,
-                      patchUri: patchUri,
-                      isLocal: true,
-                      isValidOnly: false,
-                      applyScope: "only_new",
-                    },
-                  })
+                server.applyPatch(patchUri, "only_new")
                   .then(
                     (response: any) => {
-                      if ((response as PatchResult).returnCode === 40840) {
-                        // AuthorizationTokenExpiredError
-                        Utils.removeExpiredAuthorization();
-                      }
+                      // if ((response as PatchResult).returnCode === 40840) {
+                      //   // AuthorizationTokenExpiredError
+                      //   Utils.removeExpiredAuthorization();
+                      // }
                       if (response.error == 1) {
                         vscode.window.showErrorMessage(
                           localize(

@@ -2,11 +2,10 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as nls from 'vscode-nls';
 import * as fs from 'fs';
-import { languageClient } from '../extension';
 import { isLSInitialized } from '../TotvsLanguageClient';
-import Utils from '../utils';
 import { ResponseError } from 'vscode-languageclient/node';
 import { IAuthorization, ICompileKey, serverManager } from '../serverManager';
+import { _languageClient } from '../extension';
 
 let localize = nls.loadMessageBundle();
 const compile = require('template-literal');
@@ -55,13 +54,7 @@ const localizeHTML = {
 };
 
 export function compileKeyPage(context: vscode.ExtensionContext) {
-  if (!isLSInitialized) {
-    languageClient.onReady().then(async () => {
-      initializePage(context);
-    });
-  } else {
     initializePage(context);
-  }
 }
 
 function initializePage(context: vscode.ExtensionContext) {
@@ -187,21 +180,22 @@ function setCurrentKey(
 }
 
 function getId(currentPanel) {
-  languageClient.sendRequest('$totvsserver/getId').then(
-    (response: any) => {
-      if (response.id) {
-        currentPanel.webview.postMessage({
-          command: 'setID',
-          id: response.id,
-        });
-      } else {
-        vscode.window.showErrorMessage("Couldn't get [Machine ID].");
-      }
-    },
-    (err: ResponseError<object>) => {
-      vscode.window.showErrorMessage(err.message);
-    }
-  );
+  //@acandido revisar
+  // languageClient.sendRequest('$totvsserver/getId').then(
+  //   (response: any) => {
+  //     if (response.id) {
+  //       currentPanel.webview.postMessage({
+  //         command: 'setID',
+  //         id: response.id,
+  //       });
+  //     } else {
+  //       vscode.window.showErrorMessage("Couldn't get [Machine ID].");
+  //     }
+  //   },
+  //   (err: ResponseError<object>) => {
+  //     vscode.window.showErrorMessage(err.message);
+  //   }
+  // );
 }
 
 class ValidKeyResult {
@@ -210,13 +204,13 @@ class ValidKeyResult {
 }
 
 function validateKey(currentPanel, message, close: boolean) {
-  console.log('validateKey: ' + message.token);
   if (message.token) {
     let canOverride = '0';
     if (message.overwrite) {
       canOverride = '1';
     }
-    languageClient
+    //@acandido revisar
+    _languageClient
       .sendRequest('$totvsserver/validKey', {
         keyInfo: {
           id: message.id,

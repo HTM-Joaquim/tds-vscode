@@ -1,9 +1,6 @@
-import Utils from '../utils';
-import { languageClient } from '../extension';
 import * as vscode from 'vscode';
 import { ResponseError } from 'vscode-languageclient/node';
 import * as nls from 'vscode-nls';
-//import { _debugEvent } from '../debug';
 import { serverManager } from '../serverManager';
 import { _debugEvent } from '../debug';
 

@@ -73,12 +73,7 @@ import { registerAdvplOutline, register4glOutline } from './outline';
 import { registerDebug, _debugEvent } from './debug';
 import { openMonitorView } from './monitor/monitorLoader';
 import { openRpoInfoView } from './rpoInfo/rpoInfoLoader';
-<<<<<<< .merge_file_a17040
-import { openApplyPatchView } from './patch/apply/applyPatchLoader';
 import { initStatusBarItems } from './statusBar';
-=======
-import { initStatusBarItems, updateStatusBarItems } from './statusBar';
->>>>>>> .merge_file_a23324
 import { PatchEditorProvider } from './patch/inspect/patchEditor';
 import { openTemplateApplyView } from './template/apply/formApplyTemplate';
 import { rpoTokenInputBox, saveRpoTokenString } from './rpoToken';
@@ -99,6 +94,7 @@ export function parseUri(u): Uri {
 }
 
 const LANG_ADVPL_ID = 'advpl';
+export let _languageClient: TotvsLanguageClientA; //@acandido revisar
 
 export function activate(context: ExtensionContext) {
   const startActivate: Date = new Date();
@@ -112,8 +108,8 @@ export function activate(context: ExtensionContext) {
 
   //Load Language Client and start Language Server
   let p2c: Converter;
-  const languageClient: TotvsLanguageClientA = getLanguageClient(context);
-  context.subscriptions.push(languageClient.start());
+  _languageClient = getLanguageClient(context);
+  context.subscriptions.push(_languageClient.start());
 
   TDSConfiguration.createLaunchConfig();
 
@@ -123,7 +119,7 @@ export function activate(context: ExtensionContext) {
   //General commands.
   (() => {
     commands.registerCommand('advpl.freshenIndex', () => {
-      languageClient.freshenIndex();
+      _languageClient.freshenIndex();
     });
 
     function makeRefHandler(methodName, autoGotoIfSingle = false) {
@@ -134,7 +130,7 @@ export function activate(context: ExtensionContext) {
           position = window.activeTextEditor.selection.active;
           uri = window.activeTextEditor.document.uri;
         }
-        languageClient
+        _languageClient
           .sendRequest(methodName, {
             textDocument: {
               uri: uri.toString(),
@@ -218,8 +214,8 @@ export function activate(context: ExtensionContext) {
         'advpl is loading project metadata (ie, compile_commands.json)'
       );
       statusIcon.show();
-      languageClient.onReady().then(() => {
-        languageClient.onNotification('$totvsserver/progress', (args) => {
+      _languageClient.onReady().then(() => {
+        _languageClient.onNotification('$totvsserver/progress', (args) => {
           let indexRequestCount = args.indexRequestCount || 0;
           let doIdMapCount = args.doIdMapCount || 0;
           let loadPreviousIndexCount = args.loadPreviousIndexCount || 0;
@@ -273,8 +269,8 @@ export function activate(context: ExtensionContext) {
 
     let timeout: any;
     let resolvePromise: any;
-    languageClient.onReady().then(() => {
-      languageClient.onNotification('$totvsserver/queryDbStatus', (args) => {
+    _languageClient.onReady().then(() => {
+      _languageClient.onNotification('$totvsserver/queryDbStatus', (args) => {
         let isActive: boolean = args.isActive;
         if (isActive) {
           if (timeout) {
@@ -311,7 +307,7 @@ export function activate(context: ExtensionContext) {
   // (() => {
   //   window.onDidChangeVisibleTextEditors((visible) => {
   //     for (let editor of visible) {
-  //       languageClient.sendNotification("$advpl/textDocumentDidView", {
+  //       _languageClient.sendNotification("$advpl/textDocumentDidView", {
   //         textDocumentUri: editor.document.uri.toString(),
   //       });
   //     }
@@ -657,7 +653,7 @@ export function activate(context: ExtensionContext) {
   // Register custom editor for patch files
   context.subscriptions.push(PatchEditorProvider.register(context));
 
-  //showBanner();
+  showBanner(_languageClient);
 
   // workspace.findFiles('**/.vscode/servers.json').then((uris: vscode.Uri[]) => {
   //   serverManager.enableEvents = false;
@@ -768,7 +764,7 @@ function verifyEncoding() {
 
 let firstTime = true;
 
-function showBanner(force: boolean = false) {
+function showBanner(_languageClient, force: boolean = false) {
   if (firstTime) {
     firstTime = false;
     const config = workspace.getConfiguration('totvsLanguageServer');
@@ -777,23 +773,23 @@ function showBanner(force: boolean = false) {
     if (showBanner || force) {
       let ext = vscode.extensions.getExtension('TOTVS.tds-vscode');
       /* prettier-ignore-start */
-      languageClient.outputChannel.appendLine(
+      _languageClient.outputChannel.appendLine(
         '---------------------------v---------------------------------------------------'
       );
-      languageClient.outputChannel.appendLine(
+      _languageClient.outputChannel.appendLine(
         '   //////  ////    //////  |  TOTVS Developer Studio for VS-Code'
       );
-      languageClient.outputChannel.appendLine(
+      _languageClient.outputChannel.appendLine(
         '    //    //  //  //       |  Version ' + ext.packageJSON['version']
       );
-      languageClient.outputChannel.appendLine(
+      _languageClient.outputChannel.appendLine(
         '   //    //  //  //////    |  TOTVS Technology'
       );
-      languageClient.outputChannel.appendLine('  //    //  //      //     |');
-      languageClient.outputChannel.appendLine(
+      _languageClient.outputChannel.appendLine('  //    //  //      //     |');
+      _languageClient.outputChannel.appendLine(
         ' //    ////    //////      |  https://github.com/totvs/tds-vscode'
       );
-      languageClient.outputChannel.appendLine(
+      _languageClient.outputChannel.appendLine(
         ' --------------------------^---------------------------------------------------'
       );
       /* prettier-ignore-end */

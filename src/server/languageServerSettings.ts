@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
-import { languageClient } from '../extension';
-import { IServerDebugger, serverManager } from '../serverManager';
+import { serverManager } from '../serverManager';
 import { TDSConfiguration } from '../configurations';
 
 export function toggleAutocompleteBehavior() {
@@ -45,12 +44,12 @@ export function syncSettings() {
 
 function changeSettings(jsonData: any) {
   //@acandido
-  languageClient.sendRequest('$totvsserver/changeSetting', jsonData).then(
-    (value: any) => {
-      vscode.window.showInformationMessage(value);
-    },
-    (error: any) => {
-      vscode.window.showErrorMessage(error);
-    }
-  );
+  // languageClient.sendRequest('$totvsserver/changeSetting', jsonData).then(
+  //   (value: any) => {
+  //     vscode.window.showInformationMessage(value);
+  //   },
+  //   (error: any) => {
+  //     vscode.window.showErrorMessage(error);
+  //   }
+  // );
 }

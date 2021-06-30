@@ -1,5 +1,3 @@
-import Utils from '../utils';
-import { languageClient } from '../extension';
 import * as vscode from 'vscode';
 import { ResponseError } from 'vscode-languageclient/node';
 import * as nls from 'vscode-nls';

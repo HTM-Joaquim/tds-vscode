@@ -1,13 +1,12 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import Utils from '../utils';
-import { languageClient } from '../extension';
-const compile = require('template-literal');
 import * as nls from 'vscode-nls';
 import { ResponseError } from 'vscode-languageclient/node';
 import { serverManager } from '../serverManager';
-let localize = nls.loadMessageBundle();
+
+const compile = require('template-literal');
+const localize = nls.loadMessageBundle();
 
 const localizeHTML = {
   'tds.webview.inspect.generate': localize(
@@ -103,14 +102,7 @@ export function inspectObject(context: vscode.ExtensionContext) {
       (message) => {
         switch (message.command) {
           case 'inspectorObjects':
-            languageClient
-              .sendRequest('$totvsserver/inspectorObjects', {
-                inspectorObjectsInfo: {
-                  connectionToken: server.token, //@acandido
-                  environment: server.environment,
-                  includeTres: true,
-                },
-              })
+            server.inspectorObjects(true)
               .then(
                 (response: any) => {
                   currentPanel.webview.postMessage(response.objects);
