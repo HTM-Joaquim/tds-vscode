@@ -157,31 +157,39 @@ function exportPatchValidate() {
   }
 }
 
-function sendPatchValidate(
-  patchFile: string,
-  server: IServerDebugger,
-  currentPanel
-) {
-  if (_debugEvent) {
-    vscode.window.showWarningMessage(
-      'Esta operação não é permitida durante uma depuração.'
-    );
-    return;
-  }
-
-  const patchURI: string = vscode.Uri.file(patchFile).toString();
-  server.patchValidate(patchURI).then(
-    (response: IPatchValidateResult) => {
-      patchValidatesData = response.patchValidates;
-      currentPanel.webview.postMessage({
-        command: 'setData',
-        data: response.patchValidates,
-      });
-    },
-    (err: ResponseError<IResponseStatus>) => {
-      vscode.window.showErrorMessage(err.message);
-    }
-  );
+function sendPatchValidate(patchFile, server, currentPanel) {
+	if (_debugEvent) {
+		vscode.window.showWarningMessage("Esta operação não é permitida durante uma depuração.")
+		return;
+	}
+	const patchURI = vscode.Uri.file(patchFile).toString();
+	const permissionsInfos = Utils.getPermissionsInfos();
+	languageClient
+	  .sendRequest('$totvsserver/patchApply', {
+		patchApplyInfo: {
+		  connectionToken: server.token,
+		  authorizationToken: Utils.getAuthorizationToken(server),
+		  environment: server.environment,
+		  patchUri: patchURI,
+		  isLocal: true,
+		  isValidOnly: true,
+		  applyScope: "none",
+		},
+	  }).then((response: any) => {
+		const errorMessage = response.message;
+		if (errorMessage) {
+			vscode.window.showWarningMessage(errorMessage);
+			patchValidatesData = response.patchValidates;
+			currentPanel.webview.postMessage({
+				command: 'setData',
+				data: response.patchValidates
+			});
+		} else {
+			vscode.window.showInformationMessage("No validation issues detected.");
+		}
+	}, (err: ResponseError<object>) => {
+		vscode.window.showErrorMessage(err.message);
+	});
 }
 
 function getWebViewContent(context: vscode.ExtensionContext, localizeHTML) {

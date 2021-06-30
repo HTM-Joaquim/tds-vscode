@@ -73,8 +73,12 @@ import { registerAdvplOutline, register4glOutline } from './outline';
 import { registerDebug, _debugEvent } from './debug';
 import { openMonitorView } from './monitor/monitorLoader';
 import { openRpoInfoView } from './rpoInfo/rpoInfoLoader';
+<<<<<<< .merge_file_a17040
 import { openApplyPatchView } from './patch/apply/applyPatchLoader';
 import { initStatusBarItems } from './statusBar';
+=======
+import { initStatusBarItems, updateStatusBarItems } from './statusBar';
+>>>>>>> .merge_file_a23324
 import { PatchEditorProvider } from './patch/inspect/patchEditor';
 import { openTemplateApplyView } from './template/apply/formApplyTemplate';
 import { rpoTokenInputBox, saveRpoTokenString } from './rpoToken';
@@ -86,11 +90,9 @@ import {
   ServerTreeItem,
 } from './serverItemProvider';
 import { openGeneratePatchView } from './patch/generate/generatePatchLoader';
-import { ITdsLanguageClient } from '@totvs/tds-languageclient';
 import { Converter } from 'vscode-languageclient/lib/common/protocolConverter';
 import { TotvsLanguageClientA } from './TotvsLanguageClientA';
-
-export let languageClient: TotvsLanguageClientA;
+import { patchApply } from './patch/patchApply';
 
 export function parseUri(u): Uri {
   return Uri.parse(u);
@@ -444,7 +446,7 @@ export function activate(context: ExtensionContext) {
         'Aguarde. Iniciando aplicação de pacotes...',
         5000
       );
-      openApplyPatchView(context);
+      patchApply(context, false);
     })
   );
 
@@ -456,7 +458,7 @@ export function activate(context: ExtensionContext) {
           'Aguarde. Iniciando aplicação de pacotes...',
           5000
         );
-        openApplyPatchView(context, args);
+        patchApply(context, true, args);
       }
     )
   );
@@ -476,6 +478,16 @@ export function activate(context: ExtensionContext) {
     )
   );
 
+  //Verifica o conteudo de um patch pelo menu de contexto em arquivos de patch
+  context.subscriptions.push(
+    commands.registerCommand(
+      'totvs-developer-studio.patchInfos.fromFile',
+      (args) => {
+        const uri: vscode.Uri = vscode.Uri.file(args['fsPath']);
+        vscode.commands.executeCommand('vscode.openWith', uri, 'tds.patchView');
+      }
+    )
+  );
   //Adiciona página de Includes
   context.subscriptions.push(
     commands.registerCommand(

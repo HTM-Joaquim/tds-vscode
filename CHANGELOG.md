@@ -1,5 +1,27 @@
 # Changelog
 
+# Versão [1.3.0]
+
+### Melhoria
+
+- Implementação do Linter. Veja mais detalhes em [TDS: Linter](docs/linter.md).
+
+## Reversão da atualização da Aplicação de Patches
+
+## Inclusão de validação complementar de marcas de FW do Patch a ser aplicado
+
+# Versão [1.2.5]
+
+## Erro ao executar SIGAADV via DebugErro ao executar SIGAADV via Debug (https://github.com/totvs/tds-vscode/issues/714)
+
+### Problema:
+
+- Ocorria erro "Failed to load APPMAP" ao iniciar uma depuração.
+
+### Solução:
+
+- Corrigido um processo interno de carga de informações do RPO.
+
 # Versão [1.2.4]
 
 ## Problema na aplicação de patch em Windows Server (https://github.com/totvs/tds-vscode/issues/695)
